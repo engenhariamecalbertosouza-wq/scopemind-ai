@@ -751,3 +751,52 @@ table.com-rank tr:hover td { background: rgba(255,255,255,.03); }
   box-shadow: 0 8px 22px rgba(37,211,102,.45); transition: transform .1s ease, filter .2s ease;
 }
 .wpp-flutuante:hover { filter: brightness(1.07); transform: translateY(-2px); }
+
+/* ---------------- SAUDAÇÃO (boas-vindas no topo) ---------------- */
+.saudacao { color: var(--texto-fraco); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.saudacao::before { content: ""; }
+@media (max-width: 640px) { .saudacao { display: none; } }
+
+/* ---------------- BADGE "UNLIMITED" (VIP) ---------------- */
+.badge-unlimited {
+  background: linear-gradient(100deg, #f5b301, #25d366 45%, #22d3ee) !important;
+  background-size: 200% 100% !important;
+  color: #06210f !important; border: none !important; font-weight: 900 !important;
+  letter-spacing: .6px; box-shadow: 0 0 16px rgba(34,211,238,.45);
+  animation: brilhoUnl 3s linear infinite;
+}
+.badge-unlimited .unl-inf { font-size: 15px; font-weight: 900; vertical-align: -1px; }
+@keyframes brilhoUnl { to { background-position: 200% 0; } }
+
+/* ---------------- SEÇÃO CONTA ---------------- */
+.conta-cabecalho { display: flex; align-items: center; gap: 16px; margin: 6px 4px 16px; }
+.conta-avatar {
+  width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 28px; color: #04150d;
+  background: linear-gradient(135deg, var(--verde), #22d3ee); border: 2px solid rgba(255,255,255,.18);
+}
+.conta-nome { font-size: 20px; font-weight: 800; }
+.conta-email { color: var(--texto-fraco); font-size: 13px; margin: 2px 0 6px; }
+.conta-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; }
+.tag-admin { background: linear-gradient(135deg, #ffd34d, #f59e0b); color: #3a2700; }
+.tag-vip { background: linear-gradient(100deg, #f5b301, #25d366 45%, #22d3ee); color: #06210f; }
+.tag-free { background: var(--fundo2); color: var(--texto-fraco); border: 1px solid var(--borda); }
+.conta-card {
+  max-width: 620px; background: linear-gradient(180deg, var(--cartao), var(--cartao2));
+  border: 1px solid var(--borda); border-radius: 14px; padding: 16px 18px; margin: 0 4px 14px;
+}
+.conta-card h3 { font-size: 16px; margin-bottom: 8px; }
+.conta-card input {
+  width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--borda);
+  background: var(--fundo2); color: var(--texto); font-size: 15px; outline: none; margin: 6px 0;
+}
+.conta-card input:focus { border-color: var(--verde); }
+.conta-card .btn-primario { width: auto; padding: 11px 22px; margin-top: 6px; }
+
+/* barra de duração do VIP */
+.vip-bar { height: 14px; background: rgba(255,255,255,.10); border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
+.vip-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--verde), #22d3ee); transition: width .5s ease; }
+.vip-bar-fill-baixo { background: linear-gradient(90deg, var(--laranja), var(--vermelho)); }
+.vip-dias { font-size: 13px; color: var(--texto-fraco); }
+.vip-dias b { color: var(--texto); font-size: 15px; }

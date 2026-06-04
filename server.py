@@ -158,8 +158,8 @@ def _eh_admin(u):
 
 
 def _pode_chat(u):
-    """Quem pode acessar o chat: o admin OU um cliente marcado como VIP."""
-    return _eh_admin(u) or bool(u.get("vip"))
+    """Quem pode acessar o chat: o admin OU um cliente VIP com prazo válido."""
+    return _vip_valido(u)
 
 
 def _limite_gratis(cfg):
@@ -172,6 +172,25 @@ def _limite_gratis(cfg):
         return max(0, int(v))
     except Exception:
         return 3
+
+
+VIP_DIAS = int(os.environ.get("VIP_DIAS", "30"))   # duracao do VIP em dias
+
+
+def _vip_valido(u):
+    """VIP ativo: admin sempre; cliente com vip=True e prazo nao vencido
+    (vip_ate ausente = VIP sem prazo/vitalicio)."""
+    if _eh_admin(u):
+        return True
+    if not u.get("vip"):
+        return False
+    ate = u.get("vip_ate")
+    if not ate:
+        return True
+    try:
+        return time.time() < float(ate)
+    except Exception:
+        return True
 
 
 # ----------------------------------------------------------------------------
@@ -226,6 +245,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", tipo + ("; charset=utf-8" if tipo.startswith("text") or "javascript" in tipo else ""))
         self.send_header("Content-Length", str(len(dados)))
+        self.send_header("Cache-Control", "no-cache")  # navegador sempre revalida (pega versao nova)
         self.end_headers()
         self.wfile.write(dados)
 
@@ -331,6 +351,9 @@ class Handler(BaseHTTPRequestHandler):
         if rota == "/api/comunidade/admin/exportar":
             self._com_admin_exportar(cfg)
             return
+        if rota == "/api/conta":
+            self._conta(cfg)
+            return
         self._json({"erro": "rota nao encontrada"}, 404)
 
     def _placar(self, cfg):
@@ -411,6 +434,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._com_admin_ajustar()
             elif rota == "/api/comunidade/admin/bloquear":
                 self._com_admin_bloquear()
+            elif rota == "/api/trocar-senha":
+                self._trocar_senha()
             else:
                 self._json({"erro": "rota nao encontrada"}, 404)
         except Exception as e:
@@ -427,8 +452,8 @@ class Handler(BaseHTTPRequestHandler):
         if u and hmac.compare_digest(u["hash"], _hash_senha(senha, u["salt"])):
             role = u.get("role", "admin")
             resp = {"ok": True, "token": gerar_token(cfg, chave), "usuario": u.get("nome", chave), "role": role,
-                    "vip": _eh_admin(u) or bool(u.get("vip"))}
-            if role == "cliente" and not u.get("vip"):
+                    "vip": _vip_valido(u)}
+            if role == "cliente" and not _vip_valido(u):
                 limite = _limite_gratis(cfg)
                 resp["analises_restantes"] = max(0, limite - len(u.get("jogos_abertos", [])))
             self._json(resp)
@@ -505,7 +530,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         u = cfg.get("usuarios", {}).get(usuario, {})
         is_admin = _eh_admin(u)
-        is_vip = bool(u.get("vip"))
+        is_vip = _vip_valido(u)
         # So o cliente COMUM (nao-VIP) tem limite. VIP e admin = ilimitado.
         cliente_limitado = (u.get("role", "admin") == "cliente") and not is_vip
         limite_gratis = _limite_gratis(cfg)
@@ -594,9 +619,9 @@ class Handler(BaseHTTPRequestHandler):
         return {
             "usuario": usuario,
             "nome": u.get("nome", usuario),
-            "role": "admin" if admin else ("vip" if u.get("vip") else "cliente"),
+            "role": "admin" if admin else ("vip" if _vip_valido(u) else "cliente"),
             "admin": admin,
-            "vip": admin or bool(u.get("vip")),
+            "vip": _vip_valido(u),
             "suspenso": bool(u.get("suspenso")),
             "pode_falar": _pode_chat(u) and not u.get("suspenso"),
         }
@@ -712,6 +737,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if "vip" in dados:
             alvo["vip"] = bool(dados["vip"])
+            # Ao tornar VIP, define o prazo de VIP_DIAS dias (renovar = clicar de novo).
+            alvo["vip_ate"] = (time.time() + VIP_DIAS * 86400) if dados["vip"] else None
         if "suspenso" in dados:
             alvo["suspenso"] = bool(dados["suspenso"])
             if not dados["suspenso"]:
@@ -886,6 +913,69 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"erro": "Informe o usuário."}, 400)
             return
         comunidade.admin_bloquear(alvo, bool(d.get("bloquear", True)))
+        self._json({"ok": True})
+
+    # ---- CONTA do usuario ----
+    def _conta(self, cfg):
+        usuario = usuario_do_token(cfg, self._token())
+        if not usuario:
+            self._json({"erro": "Nao autorizado."}, 401)
+            return
+        u = cfg.get("usuarios", {}).get(usuario, {})
+        admin = _eh_admin(u)
+        vip = _vip_valido(u)
+        ate = u.get("vip_ate")
+        dias_rest = None
+        data_fim = None
+        if vip and not admin and ate:
+            try:
+                ate = float(ate)
+                dias_rest = max(0, int((ate - time.time() + 86399) // 86400))
+                data_fim = time.strftime("%d/%m/%Y", time.localtime(ate))
+            except Exception:
+                pass
+        resp = {
+            "usuario": usuario,
+            "nome": ("Administrador" if admin else u.get("nome", usuario)),
+            "email": u.get("email", usuario),
+            "admin": admin,
+            "role": "admin" if admin else ("vip" if vip else "cliente"),
+            "vip": vip,
+            "vip_dias_total": VIP_DIAS,
+            "vip_dias_restantes": dias_rest,
+            "vip_ate_data": data_fim,
+            "pode_trocar_senha": (not admin),
+            "criado_em": u.get("criado_em", ""),
+        }
+        if (not admin) and (not vip):
+            resp["analises_restantes"] = max(0, _limite_gratis(cfg) - len(u.get("jogos_abertos", [])))
+        self._json(resp)
+
+    def _trocar_senha(self):
+        cfg = carregar_config()
+        usuario = usuario_do_token(cfg, self._token())
+        if not usuario:
+            self._json({"erro": "Nao autorizado."}, 401)
+            return
+        u = cfg.get("usuarios", {}).get(usuario, {})
+        if _eh_admin(u):
+            self._json({"erro": "A senha do administrador é definida na hospedagem (Render), não por aqui."}, 403)
+            return
+        d = self._corpo_json()
+        atual = (d.get("senha_atual") or "").strip()
+        nova = (d.get("nova_senha") or "").strip()
+        if len(nova) < 4:
+            self._json({"erro": "A nova senha precisa ter ao menos 4 caracteres."}, 400)
+            return
+        raw = _config_raw()
+        ru = raw.get("usuarios", {}).get(usuario)
+        if not ru or not hmac.compare_digest(ru.get("hash", ""), _hash_senha(atual, ru.get("salt", ""))):
+            self._json({"erro": "Senha atual incorreta."}, 400)
+            return
+        salt = secrets.token_hex(8)
+        ru["salt"] = salt
+        ru["hash"] = _hash_senha(nova, salt)
+        salvar_config(raw)
         self._json({"ok": True})
 
 

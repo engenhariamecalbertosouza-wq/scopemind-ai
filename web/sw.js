@@ -1,5 +1,5 @@
 // Service worker do ScopeMind AI (deixa o app instalável e funcional offline parcialmente).
-const CACHE = "scopemind-v1";
+const CACHE = "scopemind-v3";
 const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.json", "/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -8,7 +8,12 @@ self.addEventListener("install", (e) => {
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(self.clients.claim());
+  // Apaga caches de versões antigas (garante que todos peguem a versão nova).
+  e.waitUntil(
+    caches.keys().then((nomes) =>
+      Promise.all(nomes.filter((n) => n !== CACHE).map((n) => caches.delete(n)))
+    ).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener("fetch", (e) => {

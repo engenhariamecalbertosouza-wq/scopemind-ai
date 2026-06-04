@@ -23,6 +23,7 @@ let REPORTS_SET = new Set();
 let timerCarregando = null;
 let prepTimer = null;         // cronômetro dramático do cliente (30s)
 let VIP = localStorage.getItem("vip") === "1";
+let NOME = localStorage.getItem("nome") || "";
 let timerChat = null;
 let CHAT_ULTIMO = 0;          // maior id de mensagem já recebido
 let CHAT_EU = null;           // quem sou eu no chat (vem do servidor)
@@ -92,10 +93,12 @@ function aplicarSessao(d) {
   TOKEN = d.token || "";
   ROLE = d.role || "admin";
   VIP = !!d.vip;
+  NOME = d.usuario || "";
   ANALISES_REST = (d.analises_restantes === undefined ? null : d.analises_restantes);
   localStorage.setItem("token", TOKEN);
   localStorage.setItem("role", ROLE);
   localStorage.setItem("vip", VIP ? "1" : "0");
+  localStorage.setItem("nome", NOME);
   localStorage.setItem("rest", ANALISES_REST === null ? "" : ANALISES_REST);
 }
 function setRest(n) {
@@ -112,12 +115,12 @@ function aplicarPapel() {
   if (miRel) miRel.classList.toggle("hidden", cliente);
   const wf = $("#wpp-flutuante"); if (wf) wf.classList.toggle("hidden", !cliente);  // suporte WhatsApp só p/ cliente
   const b = $("#badge-cliente");
+  b.className = "badge-cliente";
   if (cliente && VIP) {
-    b.textContent = "⭐ Membro VIP";
-    b.classList.remove("hidden");
+    b.innerHTML = '<span class="unl-inf">∞</span> UNLIMITED';
+    b.classList.add("badge-unlimited");
   } else if (cliente && ANALISES_REST !== null) {
     b.textContent = "🎟️ " + ANALISES_REST + " análise(s) grátis";
-    b.classList.remove("hidden");
   } else {
     b.classList.add("hidden");
   }
@@ -152,9 +155,10 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
   } catch (err) { $("#erro-cadastro").textContent = err.message; }
 });
 function sair() {
-  TOKEN = ""; ROLE = "admin"; ANALISES_REST = null; VIP = false;
+  TOKEN = ""; ROLE = "admin"; ANALISES_REST = null; VIP = false; NOME = "";
   pararChat(); pararAoVivo(); pararAgendaAuto();
-  localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("rest"); localStorage.removeItem("vip");
+  localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("rest"); localStorage.removeItem("vip"); localStorage.removeItem("nome");
+  if ($("#saudacao")) $("#saudacao").textContent = "";
   $("#tela-app").classList.add("hidden"); $("#tela-login").classList.remove("hidden");
 }
 $("#btn-sair").addEventListener("click", sair);
@@ -173,6 +177,8 @@ async function entrarNoApp() {
   $("#tela-login").classList.add("hidden");
   $("#tela-app").classList.remove("hidden");
   aplicarPapel();
+  const nm = (ROLE === "admin") ? "Admin" : (NOME || "");
+  if ($("#saudacao")) $("#saudacao").textContent = nm ? ("👋 Bem-vindo, " + nm) : "";
   $("#btn-alertas").classList.toggle("ativo", ALERTAS_ON);
   preencherDatasAbas();
   await atualizarStatus();
@@ -207,10 +213,12 @@ document.querySelectorAll(".menu-item").forEach((mi) => {
     $("#secao-relatorios").classList.toggle("hidden", secao !== "relatorios");
     $("#secao-comunidade").classList.toggle("hidden", secao !== "comunidade");
     $("#secao-chat").classList.toggle("hidden", secao !== "chat");
+    $("#secao-conta").classList.toggle("hidden", secao !== "conta");
     if (secao === "relatorios") carregarRelatorios();
     if (secao === "encerrados") carregarEncerrados();
     if (secao === "placar") carregarPlacar();
     if (secao === "comunidade") iniciarComunidade();
+    if (secao === "conta") carregarConta();
     if (secao === "aovivo") iniciarAoVivo(); else pararAoVivo();
     if (secao === "agenda") iniciarAgendaAuto(); else pararAgendaAuto();
     if (secao === "chat") iniciarChat(); else pararChat();
@@ -1306,6 +1314,61 @@ $("#com-adm-desbloquear").addEventListener("click", () => comAdminBloquear(false
 $("#com-admin-busca-palpite").addEventListener("input", () => { clearTimeout(window._cbp); window._cbp = setTimeout(carregarComAdminPalpites, 300); });
 $("#com-admin-exp-ranking").addEventListener("click", () => comExportar("ranking"));
 $("#com-admin-exp-palpites").addEventListener("click", () => comExportar("palpites"));
+
+// ===================== Conta =====================
+async function carregarConta() {
+  try {
+    const d = await api("/api/conta");
+    $("#conta-nome").textContent = d.nome || d.usuario || "—";
+    $("#conta-email").textContent = d.email || "";
+    $("#conta-avatar").textContent = ((d.nome || "?").trim().charAt(0) || "?").toUpperCase();
+    let badge;
+    if (d.admin) badge = '<span class="conta-tag tag-admin">👑 Administrador</span>';
+    else if (d.vip) badge = '<span class="conta-tag tag-vip"><span class="unl-inf">∞</span> UNLIMITED · VIP</span>';
+    else badge = '<span class="conta-tag tag-free">🎟️ Plano grátis</span>';
+    $("#conta-badge").innerHTML = badge;
+    $("#conta-vip").innerHTML = renderContaVip(d);
+    $("#conta-senha-card").classList.toggle("hidden", !d.pode_trocar_senha);
+    $("#conta-senha-msg").textContent = "";
+  } catch (e) {
+    $("#conta-vip").innerHTML = '<div class="vazio">Erro: ' + esc(e.message) + "</div>";
+  }
+}
+function renderContaVip(d) {
+  if (d.admin) {
+    return '<h3>👑 Acesso de administrador</h3>' +
+      '<p class="aviso-pequeno">Você tem acesso <b>total</b> ao sistema: análises ilimitadas, chat e o painel de administração.</p>';
+  }
+  if (d.vip) {
+    const total = d.vip_dias_total || 30;
+    const rest = (d.vip_dias_restantes == null) ? total : d.vip_dias_restantes;
+    const pct = Math.max(0, Math.min(100, Math.round(rest / total * 100)));
+    const baixo = rest <= 5 ? " vip-bar-fill-baixo" : "";
+    const fim = d.vip_ate_data ? (' · vence em <b>' + esc(d.vip_ate_data) + '</b>') : '';
+    return '<h3>⭐ Você é VIP — análises <b>ILIMITADAS</b></h3>' +
+      '<p class="aviso-pequeno">Seu VIP dura <b>' + total + ' dias</b>' + fim +
+        '. Quando a barra zerar, é só renovar com o suporte. 🚀</p>' +
+      '<div class="vip-bar"><div class="vip-bar-fill' + baixo + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="vip-dias"><b>' + rest + '</b> de ' + total + ' dias restantes</div>' +
+      (rest <= 5 ? '<a class="btn-wpp" style="margin-top:12px" target="_blank" rel="noopener" href="https://wa.me/5582920012133?text=Ola%2C%20quero%20renovar%20meu%20VIP%20no%20ScopeMind%20AI.">💬 Renovar VIP</a>' : '');
+  }
+  const rest = (d.analises_restantes == null) ? "" : (' Você tem <b>' + d.analises_restantes + '</b> análise(s) grátis restantes.');
+  return '<h3>🎟️ Plano grátis</h3>' +
+    '<p class="aviso-pequeno">Você ainda não é VIP.' + rest +
+      ' Vire <b>VIP</b> para ter análises <b>ilimitadas</b> e acesso ao <b>Chat ao vivo</b>.</p>' +
+    '<a class="btn-wpp" target="_blank" rel="noopener" href="https://wa.me/5582920012133?text=Ola%2C%20vim%20do%20ScopeMind%20AI%20e%20quero%20virar%20VIP.">💬 Quero ser VIP</a>';
+}
+$("#btn-trocar-senha").addEventListener("click", async () => {
+  const atual = $("#conta-senha-atual").value, nova = $("#conta-senha-nova").value;
+  const msg = $("#conta-senha-msg");
+  msg.className = "ok"; msg.textContent = "";
+  if (!nova || nova.length < 4) { msg.className = "erro"; msg.textContent = "A nova senha precisa ter ao menos 4 caracteres."; return; }
+  try {
+    await api("/api/trocar-senha", { method: "POST", body: JSON.stringify({ senha_atual: atual, nova_senha: nova }) });
+    msg.className = "ok"; msg.textContent = "✅ Senha alterada com sucesso!";
+    $("#conta-senha-atual").value = ""; $("#conta-senha-nova").value = "";
+  } catch (e) { msg.className = "erro"; msg.textContent = "⚠️ " + e.message; }
+});
 
 // ===================== Mini Markdown =====================
 function markdown(txt) {
