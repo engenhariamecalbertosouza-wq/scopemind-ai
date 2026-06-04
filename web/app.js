@@ -259,7 +259,7 @@ async function carregarJogos(silencioso) {
     } else {
       const aComecar = JOGOS.filter((j) => !ehFim(j.status) && !ehVivo(j.status));
       const nLigas = [...new Set(aComecar.map((j) => j.league).filter(Boolean))].length;
-      info = "<b>" + aComecar.length + "</b> jogo(s) a começar em <b>" + nLigas + "</b> campeonatos · 🔄 atualiza sozinho a cada 1 min (os ao vivo vão pro módulo Ao Vivo).";
+      info = "<b>" + aComecar.length + "</b> jogo(s) a começar em <b>" + nLigas + "</b> campeonatos · 🔄 atualiza sozinho a cada 10 min (os ao vivo vão pro módulo Ao Vivo).";
     }
     if (dados.aviso) info += '<br><span class="aviso-plano">📌 ' + esc(dados.aviso) + "</span>";
     $("#info-periodo").innerHTML = info;
@@ -782,7 +782,7 @@ function pararAoVivo() {
 // ===================== Agenda: atualização automática (1x/min) =====================
 function iniciarAgendaAuto() {
   pararAgendaAuto();
-  timerAgenda = setInterval(() => carregarJogos(true), 60000);
+  timerAgenda = setInterval(() => carregarJogos(true), 600000);  // 10 min (poupa a cota da API)
 }
 function pararAgendaAuto() {
   if (timerAgenda) { clearInterval(timerAgenda); timerAgenda = null; }

@@ -203,8 +203,8 @@ def _fixtures_do_dia(data_iso, chave):
         except Exception:
             cache_jogos = None
         idade = datetime.datetime.now().timestamp() - os.path.getmtime(cache)
-        # hoje vale 5 min (poupa cota); outros dias valem o dia inteiro
-        valido = (data_iso != hoje_iso) or (idade < 300)
+        # hoje vale 10 min (poupa cota); outros dias valem o dia inteiro
+        valido = (data_iso != hoje_iso) or (idade < 600)
         if valido and cache_jogos is not None:
             return cache_jogos, cache_status
 
@@ -325,6 +325,61 @@ def _intervalo_datas(periodo):
     return [hoje]
 
 
+# ---------------------------------------------------------------------------
+# Filtro de DESTAQUE: so os campeonatos mais importantes (tela limpa)
+# ---------------------------------------------------------------------------
+MAX_JOGOS_DIA = 50  # teto de jogos por dia (mostra os mais importantes)
+
+# Paises cujas divisoes/copas NACIONAIS sao destaque
+PAISES_DESTAQUE = {"brazil", "brasil", "england", "spain", "france", "germany",
+                   "italy", "portugal", "netherlands", "argentina"}
+
+# Competicoes internacionais/continentais sempre destaque (casa por NOME da liga)
+LIGAS_DESTAQUE = [
+    "world cup", "copa do mundo", "euro", "european championship", "copa america",
+    "nations league", "champions league", "europa league", "conference league",
+    "libertadores", "sul-americana", "sudamericana", "recopa", "club world cup",
+    "mundial de clubes", "uefa", "conmebol", "eliminatorias", "qualif", "friendl", "amistoso",
+]
+
+
+def _eh_destaque(league, country):
+    l = (league or "").lower()
+    for termo in LIGAS_DESTAQUE:
+        if termo in l:
+            return True
+    return (country or "").lower() in PAISES_DESTAQUE
+
+
+def _prioridade(j):
+    """Menor = mais importante (para escolher os 50 melhores quando passar do teto)."""
+    l = (j.get("league") or "").lower()
+    p = (j.get("country") or "").lower()
+    if "world cup" in l or "copa do mundo" in l:
+        return 0
+    if "friendl" in l or "amistoso" in l:
+        return 1
+    if "champions league" in l:
+        return 2
+    if "libertadores" in l:
+        return 3
+    if p in ("brazil", "brasil"):
+        if "serie a" in l: return 10
+        if "serie b" in l: return 11
+        if "serie c" in l: return 12
+        if "copa do bra" in l: return 13
+        return 14
+    grandes = {"england": 20, "spain": 21, "france": 22, "italy": 23,
+               "germany": 24, "portugal": 25, "netherlands": 26, "argentina": 27}
+    if p in grandes:
+        return grandes[p]
+    if "europa league" in l or "conference league" in l:
+        return 30
+    if "sul-americana" in l or "sudamericana" in l:
+        return 31
+    return 100
+
+
 def listar_jogos(periodo, cfg):
     chave = cfg.get("football_api_key", "").strip()
     if not chave:
@@ -339,7 +394,8 @@ def listar_jogos(periodo, cfg):
         except Exception:
             jogos = []
         jogos = [j for j in jogos if j.get("status") in LIVE_PT
-                 and _eh_profissional(j.get("league", ""), j.get("country", ""), j.get("home", ""), j.get("away", ""))]
+                 and _eh_profissional(j.get("league", ""), j.get("country", ""), j.get("home", ""), j.get("away", ""))
+                 and _eh_destaque(j.get("league", ""), j.get("country", ""))]
         jogos.sort(key=lambda j: (j.get("data", ""), j.get("time", "")))
         return jogos, "ao_vivo", ""
     datas = _intervalo_datas(periodo)
@@ -359,6 +415,11 @@ def listar_jogos(periodo, cfg):
         except Exception:
             pass
     todos = [j for j in todos if _eh_profissional(j.get("league", ""), j.get("country", ""), j.get("home", ""), j.get("away", ""))]
+    # SO os campeonatos de destaque, e no maximo MAX_JOGOS_DIA (os mais importantes)
+    todos = [j for j in todos if _eh_destaque(j.get("league", ""), j.get("country", ""))]
+    if len(todos) > MAX_JOGOS_DIA:
+        todos.sort(key=_prioridade)
+        todos = todos[:MAX_JOGOS_DIA]
     todos.sort(key=lambda j: (j.get("data", ""), j.get("time", "")))
     aviso = ""
     if cota:
