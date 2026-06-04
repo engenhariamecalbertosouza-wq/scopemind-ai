@@ -1219,7 +1219,7 @@ function comPodio(top, eu) {
     '<div class="podio-col lugar-' + d.pos + (d.usuario === eu ? " eu" : "") + '">' +
       '<div class="podio-medalha">' + (d.pos === 1 ? "🥇" : d.pos === 2 ? "🥈" : "🥉") + "</div>" +
       comAvatar(d.nome) + '<div class="podio-nome">' + esc(d.nome) + "</div>" + comBadge(d.badge, true) +
-      '<div class="podio-xp">' + d.xp + " XP</div><div class="podio-base">" + d.pos + "º</div></div>").join("") + "</div>";
+      '<div class="podio-xp">' + d.xp + ' XP</div><div class="podio-base">' + d.pos + "º</div></div>").join("") + "</div>";
 }
 function comTabelaRanking(r, eu) {
   let h = '<table class="com-rank"><thead><tr><th>#</th><th class="esq">Usuário</th><th>XP</th>' +
