@@ -176,39 +176,76 @@ def _cache_path(nome):
     return os.path.join(CACHE_DIR, nome)
 
 
+def _salvar_cache_dia(cache, jogos, bloqueado):
+    tmp = cache + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"jogos": jogos, "bloqueado": bloqueado}, f, ensure_ascii=False)
+    os.replace(tmp, cache)
+
+
 def _fixtures_do_dia(data_iso, chave):
-    """Retorna (lista de jogos normalizados, bloqueado_pelo_plano) de um dia, com cache."""
+    """Retorna (lista de jogos normalizados, status) de um dia, com cache.
+    status: "" (ok) | "bloqueado" (data fora do plano grátis) | "cota" (limite
+    diário de consultas atingido). REGRA: quando a cota acaba ou a rede falha,
+    NUNCA sobrescreve o cache bom — devolve os últimos jogos que já tinha."""
     cache = _cache_path("fixtures_%s.json" % data_iso)
     hoje_iso = datetime.date.today().isoformat()
-    # cache: dias passados/futuros valem muito tempo; hoje vale 20 min
+    cache_jogos, cache_status = None, ""
     if os.path.exists(cache):
+        try:
+            with open(cache, "r", encoding="utf-8") as f:
+                c = json.load(f)
+            if isinstance(c, dict):
+                cache_jogos = c.get("jogos", [])
+                cache_status = "bloqueado" if c.get("bloqueado") else ""
+            else:
+                cache_jogos = c  # cache antigo (lista pura)
+        except Exception:
+            cache_jogos = None
         idade = datetime.datetime.now().timestamp() - os.path.getmtime(cache)
-        valido = (data_iso != hoje_iso) or (idade < 60)
-        if valido:
-            try:
-                with open(cache, "r", encoding="utf-8") as f:
-                    c = json.load(f)
-                if isinstance(c, dict):
-                    return c.get("jogos", []), c.get("bloqueado", False)
-                return c, False  # cache antigo (lista pura)
-            except Exception:
-                pass
-    dados = _api_get("/fixtures", {"date": data_iso, "timezone": "America/Sao_Paulo"}, chave)
+        # hoje vale 5 min (poupa cota); outros dias valem o dia inteiro
+        valido = (data_iso != hoje_iso) or (idade < 300)
+        if valido and cache_jogos is not None:
+            return cache_jogos, cache_status
+
+    # precisa consultar a API
+    try:
+        dados = _api_get("/fixtures", {"date": data_iso, "timezone": "America/Sao_Paulo"}, chave)
+    except urllib.error.HTTPError:
+        raise
+    except Exception:
+        # rede falhou -> usa o cache antigo se houver (nao apaga nada)
+        if cache_jogos is not None:
+            return cache_jogos, cache_status
+        return [], ""
+
     erros = dados.get("errors")
-    bloqueado = False
     if isinstance(erros, dict) and erros:
         txt = " ".join(str(v) for v in erros.values()).lower()
-        if "plan" in txt or "access" in txt:
-            bloqueado = True
+        # COTA diaria esgotada -> NAO sobrescreve o cache; devolve o que ja tinha
+        if "request limit" in txt or "reached the request" in txt or ("limit" in txt and "request" in txt):
+            if cache_jogos is not None:
+                return cache_jogos, "cota"
+            return [], "cota"
+        # data fora da janela do plano gratuito -> e seguro cachear vazio
+        if "access to this date" in txt or "do not have access" in txt or "plan" in txt or "access" in txt:
+            try:
+                _salvar_cache_dia(cache, [], True)
+            except Exception:
+                pass
+            return [], "bloqueado"
+        # outro erro qualquer -> nao apaga o cache bom
+        if cache_jogos is not None:
+            return cache_jogos, cache_status
+        return [], ""
+
+    # sucesso de verdade -> normaliza e cacheia
     jogos = [_normalizar(item) for item in dados.get("response", [])]
     try:
-        tmp = cache + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"jogos": jogos, "bloqueado": bloqueado}, f, ensure_ascii=False)
-        os.replace(tmp, cache)
+        _salvar_cache_dia(cache, jogos, False)
     except Exception:
         pass
-    return jogos, bloqueado
+    return jogos, ""
 
 
 def _normalizar(item):
@@ -307,12 +344,15 @@ def listar_jogos(periodo, cfg):
         return jogos, "ao_vivo", ""
     datas = _intervalo_datas(periodo)
     todos = []
-    bloqueio = False
+    cota, bloqueio = False, False
     for d in datas:
         try:
-            jogos, bloq = _fixtures_do_dia(d.isoformat(), chave)
+            jogos, status = _fixtures_do_dia(d.isoformat(), chave)
             todos.extend(jogos)
-            bloqueio = bloqueio or bloq
+            if status == "cota":
+                cota = True
+            elif status == "bloqueado":
+                bloqueio = True
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
                 raise RuntimeError("Chave de dados de futebol invalida ou sem permissao.")
@@ -321,7 +361,10 @@ def listar_jogos(periodo, cfg):
     todos = [j for j in todos if _eh_profissional(j.get("league", ""), j.get("country", ""), j.get("home", ""), j.get("away", ""))]
     todos.sort(key=lambda j: (j.get("data", ""), j.get("time", "")))
     aviso = ""
-    if bloqueio:
+    if cota:
+        aviso = ("Limite diario de consultas da API-Football (plano gratuito) atingido hoje. "
+                 "Mostrando os ultimos jogos ja carregados; a cota reseta sozinha amanha.")
+    elif bloqueio:
         aviso = ("O plano gratuito da API-Football cobre apenas ontem, hoje e amanha. "
                  "Para ver a semana/mes completos e resultados antigos, seria preciso um plano pago.")
     return todos, "ao_vivo", aviso
