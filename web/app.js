@@ -583,7 +583,7 @@ async function rodarAnalise(j) {
     clearInterval(timerCarregando);
     if (r.chave) REPORTS_SET.add(r.chave);
     if (r.analises_restantes !== undefined) setRest(r.analises_restantes);
-    preencherRelatorio(Object.assign({}, j, { confianca: r.confianca, relatorio: r.relatorio, chave: r.chave, desatualizado: false }));
+    preencherRelatorio(Object.assign({}, j, { confianca: r.confianca, relatorio: r.relatorio, dados: r.dados, chave: r.chave, desatualizado: false }));
   } catch (err) {
     clearInterval(timerCarregando);
     fechar("modal-relatorio");
@@ -652,7 +652,7 @@ async function rodarAnaliseCliente(j) {
   if (resp.analises_restantes !== undefined) setRest(resp.analises_restantes);
   abrirModalRelatorio(j);
   preencherRelatorio(Object.assign({}, j, {
-    confianca: resp.confianca, relatorio: resp.relatorio, chave: resp.chave, desatualizado: false,
+    confianca: resp.confianca, relatorio: resp.relatorio, dados: resp.dados, chave: resp.chave, desatualizado: false,
   }));
 }
 
@@ -695,10 +695,16 @@ function abrirModalRelatorio(j) {
   abrir("modal-relatorio");
 }
 function preencherRelatorio(dados) {
-  const conf = dados.confianca || "Moderada";
-  $("#rel-badge-conf").innerHTML =
-    '<span class="tag-conf conf-' + conf + '">Grau de confiança: ' + conf + "</span>";
-  $("#rel-corpo").innerHTML = markdown(dados.relatorio || "");
+  const conf = dados.confianca || "Média";
+  const painel = dados.dados;
+  if (painel && typeof painel === "object") {
+    $("#rel-badge-conf").innerHTML = "";   // o painel já mostra a confiança
+    $("#rel-corpo").innerHTML = renderPainelAnalise(painel, dados);
+  } else {
+    $("#rel-badge-conf").innerHTML =
+      '<span class="tag-conf conf-' + conf + '">Grau de confiança: ' + conf + "</span>";
+    $("#rel-corpo").innerHTML = markdown(dados.relatorio || "");
+  }
   REL_ATUAL_CHAVE = dados.chave || "";
   REL_ATUAL_JOGO = dados;
   const cli = ehCliente();   // cliente não refaz nem exclui (e não vê aviso de "refazer")
@@ -1368,6 +1374,106 @@ $("#btn-trocar-senha").addEventListener("click", async () => {
     msg.className = "ok"; msg.textContent = "✅ Senha alterada com sucesso!";
     $("#conta-senha-atual").value = ""; $("#conta-senha-nova").value = "";
   } catch (e) { msg.className = "erro"; msg.textContent = "⚠️ " + e.message; }
+});
+
+// ===================== Painel visual de análise =====================
+function paNum(x) { const n = parseInt(x, 10); return isNaN(n) ? 0 : Math.max(0, Math.min(100, n)); }
+function paProbBar(nome, pct, cls) {
+  return '<div class="pa-prob"><div class="pa-prob-top"><span class="pa-prob-nome">' + esc(nome) +
+    '</span><span class="pa-prob-pct">' + pct + '%</span></div>' +
+    '<div class="pa-prob-bar"><div class="pa-prob-fill pa-' + cls + '" style="width:' + pct + '%"></div></div></div>';
+}
+function paPlacar(placar, rotulo, motivo, principal) {
+  return '<div class="pa-placar' + (principal ? ' principal' : '') + '">' +
+    '<div class="pa-placar-rot">' + esc(rotulo || '') + '</div>' +
+    '<div class="pa-placar-num">' + esc(placar || '—') + '</div>' +
+    (motivo ? '<div class="pa-placar-mot">' + esc(motivo) + '</div>' : '') + '</div>';
+}
+function paScorer(a, pos) {
+  const prob = paNum(a.prob_gol);
+  const st = a.status || '';
+  const stCls = /confirm/i.test(st) ? 'st-ok' : (/d[úu]vid/i.test(st) ? 'st-duvida' : 'st-prov');
+  const stTag = st ? '<span class="pa-scorer-status ' + stCls + '">' + esc(st) + '</span>' : '';
+  return '<div class="pa-scorer"><div class="pa-scorer-pos">' + pos + '</div>' +
+    '<div class="pa-scorer-info">' +
+      '<div class="pa-scorer-nome">' + esc(a.nome || '') + stTag + '</div>' +
+      '<div class="pa-scorer-meta">' + esc(a.time || '') + (a.posicao ? ' · ' + esc(a.posicao) : '') + '</div>' +
+      (a.motivo ? '<div class="pa-scorer-mot">' + esc(a.motivo) + '</div>' : '') +
+      '<div class="pa-prob-bar mini"><div class="pa-prob-fill pa-gol" style="width:' + prob + '%"></div></div>' +
+    '</div><div class="pa-scorer-pct">' + prob + '%</div></div>';
+}
+function paForcas(titulo, lista, cor) {
+  if (!lista || !lista.length) return '';
+  return '<div class="pa-card pa-forcas pa-forcas-' + cor + '"><div class="pa-card-titulo">' + esc(titulo) +
+    '</div><ul>' + lista.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+}
+function paInd(rot, val) {
+  if (val === null || val === undefined || val === '') return '';
+  return '<div class="pa-ind-card"><div class="pa-ind-val">' + esc(String(val)) + '</div><div class="pa-ind-rot">' + esc(rot) + '</div></div>';
+}
+function renderPainelAnalise(p, info) {
+  const home = info.home || '', away = info.away || '';
+  const conf = p.confianca || 'Média';
+  const confScore = paNum(p.confianca_score);
+  const confCls = conf === 'Alta' ? 'pa-conf-alta' : (conf === 'Baixa' ? 'pa-conf-baixa' : 'pa-conf-media');
+  const pc = paNum(p.prob_casa), pe = paNum(p.prob_empate), pf = paNum(p.prob_fora);
+  const favProb = Math.max(pc, pe, pf);
+  const favNome = p.favorito || (pc >= pe && pc >= pf ? home : (pf >= pe ? away : 'Empate'));
+  let h = '<div class="pa">';
+  h += '<div class="pa-conf ' + confCls + '"><div class="pa-conf-row"><span>Confiança da análise</span>' +
+    '<span class="pa-conf-tag">' + esc(conf.toUpperCase()) + ' · ' + confScore + '/100</span></div>' +
+    '<div class="pa-conf-bar"><div class="pa-conf-fill" style="width:' + confScore + '%"></div></div></div>';
+  h += '<div class="pa-card"><div class="pa-card-titulo">📊 Probabilidades</div>' +
+    paProbBar(home, pc, 'casa') + paProbBar('Empate', pe, 'empate') + paProbBar(away, pf, 'fora') + '</div>';
+  h += '<div class="pa-card pa-destaque"><div class="pa-dest-rot">⭐ Cenário mais provável</div>' +
+    '<div class="pa-dest-fav">' + esc(favNome) + '</div><div class="pa-dest-grid">' +
+      '<div><div class="pa-dest-num">' + favProb + '%</div><div class="pa-dest-sub">probabilidade</div></div>' +
+      '<div><div class="pa-dest-num">' + esc(p.placar_principal || '—') + '</div><div class="pa-dest-sub">placar mais provável</div></div>' +
+    '</div></div>';
+  if (p.placar_principal) {
+    h += '<div class="pa-card"><div class="pa-card-titulo">🎯 Placar mais provável</div><div class="pa-placares">' +
+      paPlacar(p.placar_principal, 'Principal', p.placar_principal_motivo, true) +
+      (p.placares_alt || []).map((a) => paPlacar(a.placar, a.rotulo || 'Alternativo', a.motivo, false)).join('') +
+      '</div></div>';
+  }
+  h += '<div class="pa-card"><div class="pa-card-titulo">⚽ Mais prováveis para marcar</div>';
+  if ((p.artilheiros || []).length) {
+    h += p.artilheiros.map((a, i) => paScorer(a, i + 1)).join('');
+    if (p.artilheiros_aviso) h += '<div class="pa-aviso-dados">ℹ️ ' + esc(p.artilheiros_aviso) + '</div>';
+  } else {
+    h += '<div class="pa-aviso-dados">ℹ️ ' + esc(p.artilheiros_aviso || 'Dados insuficientes para apontar artilheiros com segurança.') + '</div>';
+  }
+  h += '</div>';
+  if ((p.leitura || []).length) {
+    h += '<div class="pa-card"><div class="pa-card-titulo">🧠 Como o jogo tende a acontecer</div><div class="pa-leitura">' +
+      p.leitura.map((l) => '<div class="pa-leitura-item"><span class="pa-leitura-ic">' + esc(l.icone || '•') +
+        '</span><span>' + esc(l.texto || '') + '</span></div>').join('') + '</div></div>';
+  }
+  h += '<div class="pa-cols">' + paForcas('🟢 Favorece ' + home, p.forcas_casa, 'verde') +
+    paForcas('🔵 Favorece ' + away, p.forcas_fora, 'azul') + '</div>';
+  if ((p.confianca_motivos || []).length) {
+    h += paForcas('⚠️ Por que a confiança é ' + conf.toLowerCase(), p.confianca_motivos, 'amarelo');
+  }
+  const ind = p.indicadores || {};
+  const indHtml = paInd('Tendência de gols', ind.gols) +
+    paInd('Ambas marcam', (ind.ambas_marcam != null && ind.ambas_marcam !== '') ? (paNum(ind.ambas_marcam) + '%') : '') +
+    paInd('Escanteios', ind.escanteios) + paInd('1º tempo', ind.primeiro_tempo) +
+    paInd('Risco de zebra', ind.risco_zebra);
+  if (indHtml) h += '<div class="pa-card"><div class="pa-card-titulo">⚡ Indicadores rápidos</div><div class="pa-ind">' + indHtml + '</div></div>';
+  if (info.relatorio && info.relatorio.trim()) {
+    h += '<div class="pa-detalhes"><button type="button" class="pa-ver-detalhes">📄 Ver análise completa</button>' +
+      '<div class="pa-detalhes-corpo hidden">' + markdown(info.relatorio) + '</div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+$("#rel-corpo").addEventListener("click", (e) => {
+  const b = e.target.closest(".pa-ver-detalhes");
+  if (!b) return;
+  const corpo = b.parentElement.querySelector(".pa-detalhes-corpo");
+  if (!corpo) return;
+  const agoraOculto = corpo.classList.toggle("hidden");
+  b.textContent = agoraOculto ? "📄 Ver análise completa" : "📄 Ocultar análise completa";
 });
 
 // ===================== Mini Markdown =====================

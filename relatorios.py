@@ -64,6 +64,7 @@ def salvar(partida, resultado):
         "prognostico": resultado.get("prognostico"),
         "modelo": resultado.get("modelo"),
         "relatorio": resultado.get("relatorio"),
+        "dados": resultado.get("dados"),  # JSON estruturado p/ o painel visual
         "analisado_em": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
         "analisado_ts": time.time(),
     }

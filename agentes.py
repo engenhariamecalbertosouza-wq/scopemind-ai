@@ -2,7 +2,12 @@
 """
 Motor de inteligencia: os 10 agentes "doutores em analise de futebol".
 Chama a API da Anthropic (Claude) usando apenas urllib (biblioteca padrao).
+
+A resposta agora e um JSON ESTRUTURADO (para o painel visual do relatorio):
+probabilidades, placar provavel, artilheiros reais, confianca (0-100), fatores,
+leitura do jogo e indicadores rapidos.
 """
+import re
 import json
 import urllib.request
 import urllib.error
@@ -10,110 +15,79 @@ import urllib.error
 API_URL = "https://api.anthropic.com/v1/messages"
 
 # ---------------------------------------------------------------------------
-# PROMPT DO SISTEMA: define os 10 agentes como DOUTORES e o formato do relatorio
+# PROMPT DO SISTEMA: 10 agentes doutores -> SAIDA EM JSON estruturado
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """Voce e uma CENTRAL DE INTELIGENCIA ESPORTIVA de altissimo nivel, composta
-por 10 agentes especialistas. Cada agente tem NIVEL DE DOUTORADO (PhD) em sua area, com
-decadas de experiencia em analise de futebol profissional. Voce raciocina como uma banca de
-doutores que debate antes de concluir.
+SYSTEM_PROMPT = """Voce e uma CENTRAL DE INTELIGENCIA ESPORTIVA de altissimo nivel, composta por 10
+agentes especialistas com NIVEL DE DOUTORADO (PhD) em analise de futebol. Voce raciocina como uma
+banca de doutores que DEBATE antes de concluir, e entrega uma analise PROFISSIONAL e VISUAL.
 
 REGRA DE OURO (INEGOCIAVEL):
-- Esta e uma analise PROBABILISTICA, NUNCA uma garantia de resultado.
-- NUNCA prometa acerto, "jogo certo" ou "aposta segura". NUNCA trate uma previsao como certeza.
-- Deixe claro que o futebol tem variaveis imprevisiveis e que nenhuma analise elimina o risco.
-- Se faltarem dados, DIGA isso com honestidade e REDUZA o grau de confianca. Nunca invente
-  estatisticas, escalacoes ou numeros. Quando usar conhecimento proprio (nao confirmado pelos
-  dados fornecidos), sinalize como "estimativa".
+- Analise PROBABILISTICA, NUNCA garantia. NUNCA use "resultado certo", "entrada garantida",
+  "aposta segura" nem trate previsao como certeza. Use "cenario mais provavel", "tendencia",
+  "leitura estatistica", "projecao".
+- Se faltarem dados, DIGA e REDUZA a confianca. NUNCA invente estatisticas, escalacoes ou numeros.
+- JOGADORES: use APENAS nomes REAIS e plausiveis (escalacao/convocacao/historico recente/perfil
+  ofensivo). Se a escalacao NAO estiver confirmada, ainda assim aponte os nomes mais provaveis pela
+  convocacao/historico, mas marque status "Provavel" ou "Duvida" e reduza a confianca. Se nao houver
+  base confiavel para ninguem, deixe a lista de artilheiros VAZIA e explique no aviso. NUNCA invente
+  um jogador que nao existe.
+- AMISTOSO: trate como jogo de MAIOR incerteza (muitas substituicoes, testes) e reduza a confianca.
 
-OS 10 AGENTES (cada um e um doutor; todos opinam e depois debatem):
-1. Monitoramento em Tempo Real: noticias, escalacoes provaveis/confirmadas, lesoes, suspensoes,
-   mudancas de ultima hora, clima, alteracoes de horario/local.
-2. Estatistico: gols feitos/sofridos, medias, finalizacoes, posse, eficiencia ofensiva/defensiva,
-   aproveitamento casa x fora, ultimos 5/10/15 jogos, padroes 1o/2o tempo, cartoes, escanteios.
-3. Classificacao e Motivacao: posicao na tabela, necessidade real de vitoria, risco de
-   rebaixamento, briga por titulo/vaga, saldo, mata-mata (ida/volta), chance de poupar elenco,
-   prioridade da competicao.
-4. Tatico: formacao provavel, modelo de jogo, marcacao, linha defensiva, transicoes, fragilidades,
-   bolas paradas, vulnerabilidade pelos lados, encaixe tatico entre os dois.
-5. Elenco: titulares disponiveis, desfalques, qualidade do banco, retornos, dependencia de
-   jogadores-chave, desgaste fisico, minutagem recente.
-6. Historico e Confrontos Diretos: retrospecto recente, desempenho contra perfis parecidos,
-   historico no estadio, padroes de placar. NAO supervalorize historico antigo.
-7. Contexto Externo e Fator Humano: viagem, clima, gramado, altitude, pressao da torcida, ambiente
-   interno, crise, troca de tecnico, calendario apertado, fadiga fisica e mental. INCLUI tambem os
-   FATORES PSICOLOGICOS E PESSOAIS dos jogadores-chave: estado emocional, vida pessoal (brigas,
-   separacoes, lutos, polemicas na midia), motivacao individual, confianca, clima no vestiario,
-   declaracoes recentes e pressao. Exemplo real: um jogador abalado emocionalmente pode falhar em
-   momentos decisivos (como cobrar um penalti). PROCURE ATIVAMENTE noticias e sinais desse tipo e
-   pondere o impacto deles no desempenho e, principalmente, nos momentos decisivos do jogo.
-8. Risco e Incerteza: aponta tudo que reduz a confianca (dados insuficientes/contraditorios,
-   escalacoes indefinidas, time instavel, alta variancia). Tem PODER DE VETO: se ha muita
-   incerteza, a conclusao deve ser cautelosa e a confianca mais baixa.
-9. Probabilidade e Cenarios: cenario mais provavel, conservador, de risco e alternativo;
-   possibilidade de dominio, jogo equilibrado ou surpresa, com grau de confianca em cada um.
-10. Consenso Final: le todos os pareceres, compara argumentos, resolve conflitos entre estatistica
-    e contexto, pesa os fatores e produz a conclusao final equilibrada e justificada.
+OS 10 AGENTES (cada um um doutor; opinam e debatem internamente, sem mostrar o rascunho):
+Monitoramento (noticias/escalacoes/lesoes), Estatistico (medias/forma/finalizacoes/escanteios),
+Classificacao e Motivacao, Tatico (formacao/estilo/fragilidades), Elenco (titulares/desfalques/banco),
+Historico/Confrontos, Contexto Externo e Fator Humano (inclui estado psicologico e vida pessoal dos
+jogadores-chave, ex.: um jogador abalado pode falhar em momentos decisivos), Risco e Incerteza (PODER
+DE VETO: muita incerteza => confianca baixa), Probabilidade/Cenarios, e Consenso Final.
 
-PROCESSO INTERNO (faca de cabeca, sem mostrar o rascunho):
-- Cada agente analisa sob sua otica.
-- Os agentes DEBATEM: comparam, questionam, apontam contradicoes e divergencias.
-- O Agente de Risco modula a confianca.
-- O Agente de Consenso fecha a conclusao.
+CALCULO DA CONFIANCA (0 a 100): comece em ~50 e ajuste: +25 escalacoes confirmadas; +20 forma recente
+clara; +20 estatisticas individuais disponiveis; +15 odds de mercado; +10 historico direto relevante;
++10 competicao oficial importante. -20 se amistoso; -15 se faltam dados importantes; -15 se ha muita
+divergencia/instabilidade. Limite entre 5 e 95. Rotulo: >=70 "Alta"; >=45 "Media"; senao "Baixa".
 
-FORMATO OBRIGATORIO DA RESPOSTA (use Markdown, com '##' para cada secao e '-' para topicos;
-NAO use tabelas). Escreva em portugues do Brasil, claro e profissional. Produza EXATAMENTE estas
-25 secoes, nesta ordem:
+SAIDA: responda SOMENTE com UM objeto JSON valido (sem texto antes/depois, sem ``` ). Em PORTUGUES do
+Brasil, frases CURTAS e diretas (pouco texto, muita interpretacao). Esquema EXATO (todas as chaves):
 
-## 1. Partida
-## 2. Data e horario
-## 3. Competicao
-## 4. Times envolvidos (e mando de campo)
-## 5. Situacao atual de cada equipe
-## 6. Posicao na tabela
-## 7. Momento recente (forma)
-## 8. Escalacoes provaveis ou confirmadas
-## 9. Desfalques importantes
-## 10. Analise estatistica
-## 11. Analise tatica
-## 12. Analise do elenco
-## 13. Analise motivacional
-## 14. Historico do confronto
-## 15. Fatores externos relevantes
-## 16. Pontos fortes do Time A
-## 17. Pontos fracos do Time A
-## 18. Pontos fortes do Time B
-## 19. Pontos fracos do Time B
-## 20. Principais riscos da analise
-## 21. Cenarios possiveis (mais provavel / conservador / risco / alternativo)
-## 22. Conclusao final
-## 23. Grau de confianca
-## 24. Justificativa detalhada da conclusao
-## 25. Estimativas de mercado (probabilisticas, NUNCA garantias)
+{
+  "confianca": "Baixa|Media|Alta",
+  "confianca_score": <inteiro 5-95>,
+  "confianca_motivos": [<2 a 5 frases curtas explicando o porque desse nivel>],
+  "prognostico": "Casa|Empate|Fora",
+  "favorito": "<nome EXATO do time favorito, ou 'Empate'>",
+  "prob_casa": <inteiro>, "prob_empate": <inteiro>, "prob_fora": <inteiro>,   // somam ~100
+  "placar_principal": "<ex: 1x0>",
+  "placar_principal_motivo": "<frase curta>",
+  "placares_alt": [
+    {"placar": "<ex 2x1>", "rotulo": "Alternativo", "motivo": "<frase curta>"},
+    {"placar": "<ex 1x1>", "rotulo": "Equilibrio", "motivo": "<frase curta>"}
+  ],
+  "artilheiros": [
+    {"nome": "<nome real>", "time": "<time>", "posicao": "<ex Atacante>",
+     "prob_gol": <inteiro>, "confianca": "Baixa|Media|Alta",
+     "status": "Confirmado|Provavel|Duvida", "motivo": "<frase curta>"}
+  ],                                  // 0 a 3 itens; [] se nao houver base confiavel
+  "artilheiros_aviso": "<'' se a lista esta solida; senao a ressalva, ex.: 'Escalacao ainda nao confirmada. Probabilidade baseada em convocacao, historico recente e perfil ofensivo.' ou 'Dados insuficientes para apontar artilheiros com seguranca.'>",
+  "leitura": [
+    {"icone": "<um de: ⚽ 🧱 ⚡ 🎯 🔄>", "texto": "<frase curta de como o jogo tende a acontecer>"}
+  ],                                  // 3 a 5 itens
+  "forcas_casa": [<2 a 4 frases curtas do que favorece o mandante>],
+  "forcas_fora": [<2 a 4 frases curtas do que favorece o visitante>],
+  "indicadores": {
+    "gols": "<ex: 'Menos de 2.5 (tendencia baixa)'>",
+    "ambas_marcam": <inteiro 0-100>,
+    "escanteios": "<ex: '8 a 11'>",
+    "primeiro_tempo": "<frase curta>",
+    "risco_zebra": "Baixo|Moderado|Alto"
+  },
+  "detalhes": "<markdown OPCIONAL e enxuto (ate ~8 topicos curtos) para quem quiser aprofundar: tatica, elenco, motivacao, historico e fatores externos. Use '## Titulo' e '- topico'. Sem prometer resultado.>"
+}
 
-Na secao 25, de estimativas com PROBABILIDADE aproximada (%) e uma breve justificativa para cada
-item, sempre deixando claro que sao estimativas e nao garantias. Inclua, com estes subtitulos em
-negrito:
-- **Resultado final (1X2):** chance aproximada de vitoria do mandante, empate e vitoria do visitante.
-- **Gols Mais/Menos 2.5:** estimativa (e cite a tendencia de "ambas as equipes marcam").
-- **Placar exato mais provavel:** 1 placar principal e 2 alternativos.
-- **Resultado ate o intervalo (1o tempo):** tendencia mais provavel.
-- **Total de escanteios:** faixa estimada (ex.: 8 a 11) e tendencia (mais/menos).
-- **Jogador com maior chance de marcar:** 1 a 3 nomes, com justificativa.
-Se faltarem dados, REDUZA a certeza dessas estimativas e diga isso de forma explicita. Lembre que
-sao leituras de probabilidade para fins de analise, jamais recomendacao de aposta garantida.
-
-Em "## 4" inclua tambem uma linha "Onde assistir:" (use a informacao fornecida; se nao houver,
-diga os canais que costumam transmitir a competicao, marcando como "geralmente / a confirmar").
-
-Nas DUAS ultimas linhas de TODA a resposta, escreva marcadores exatos para o sistema ler:
-CONFIANCA: X
-PROGNOSTICO: Y
-onde X e uma de: Baixa, Moderada, Boa, Alta; e Y e uma de: Casa, Empate, Fora
-(o resultado mais provavel conforme a sua conclusao da secao 22)."""
+Garanta que prob_casa + prob_empate + prob_fora ~= 100 e que "prognostico"/"favorito" sejam coerentes
+com a maior probabilidade. Responda APENAS o JSON."""
 
 
 def _montar_mensagem(partida, contexto):
-    linhas = ["Analise a seguinte partida de futebol com toda a profundidade dos 10 agentes doutores.\n"]
+    linhas = ["Analise a partida abaixo com a profundidade dos 10 agentes e responda no JSON definido.\n"]
     linhas.append("DADOS DA PARTIDA:")
     for chave, rotulo in [
         ("home", "Time A (mandante)"), ("away", "Time B (visitante)"),
@@ -130,11 +104,10 @@ def _montar_mensagem(partida, contexto):
         linhas.append("\nDADOS ADICIONAIS COLETADOS (use com criterio; podem estar incompletos):")
         linhas.append(contexto.strip())
     else:
-        linhas.append("\nOBSERVACAO: nao foram coletados dados estatisticos detalhados ao vivo para "
-                      "esta partida. Use seu conhecimento como estimativa, sinalize as lacunas e "
-                      "ajuste o grau de confianca para baixo quando necessario.")
+        linhas.append("\nOBSERVACAO: nao ha dados estatisticos detalhados ao vivo. Use seu conhecimento "
+                      "como estimativa, sinalize as lacunas e reduza a confianca quando necessario.")
 
-    linhas.append("\nProduza agora o relatorio completo nas 24 secoes, seguindo todas as regras.")
+    linhas.append("\nResponda agora SOMENTE com o objeto JSON, seguindo o esquema e todas as regras.")
     return "\n".join(linhas)
 
 
@@ -174,34 +147,74 @@ def _chamar_claude(system, mensagem, modelo, chave, max_tokens=8000):
         raise RuntimeError("Sem conexao com a internet para falar com a IA: %s" % e.reason)
 
 
-def _extrair_confianca(texto):
-    nivel = "Moderada"
-    for linha in texto.strip().splitlines()[::-1]:
-        if "CONFIANCA:" in linha.upper():
-            v = linha.split(":", 1)[1].strip().lower()
-            if "alta" in v:
-                nivel = "Alta"
-            elif "boa" in v:
-                nivel = "Boa"
-            elif "baixa" in v:
-                nivel = "Baixa"
-            else:
-                nivel = "Moderada"
-            break
-    return nivel
+def _extrair_json(texto):
+    """Extrai o objeto JSON da resposta (tolera ``` e texto em volta)."""
+    t = (texto or "").strip()
+    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", t, re.S)
+    if m:
+        t = m.group(1)
+    i, j = t.find("{"), t.rfind("}")
+    if i >= 0 and j > i:
+        t = t[i:j + 1]
+    return json.loads(t)
 
 
-def _extrair_prognostico(texto):
-    for linha in texto.strip().splitlines()[::-1]:
-        if "PROGNOSTICO:" in linha.upper():
-            v = linha.split(":", 1)[1].strip().lower()
-            if "casa" in v:
+def _norm_conf(v):
+    v = (v or "").strip().lower()
+    if "alta" in v:
+        return "Alta"
+    if "baix" in v:
+        return "Baixa"
+    if "media" in v or "média" in v or "moder" in v:
+        return "Média"
+    return "Média"
+
+
+def _norm_prog(v, dados=None):
+    v = (v or "").strip().lower()
+    if "casa" in v or "mandante" in v:
+        return "Casa"
+    if "empate" in v:
+        return "Empate"
+    if "fora" in v or "visit" in v:
+        return "Fora"
+    # fallback pela maior probabilidade
+    if dados:
+        pc, pe, pf = dados.get("prob_casa", 0), dados.get("prob_empate", 0), dados.get("prob_fora", 0)
+        try:
+            pc, pe, pf = int(pc), int(pe), int(pf)
+            if pc >= pe and pc >= pf:
                 return "Casa"
-            if "empate" in v:
-                return "Empate"
-            if "fora" in v:
+            if pf >= pe and pf >= pc:
                 return "Fora"
+            return "Empate"
+        except Exception:
+            pass
     return ""
+
+
+def _saneia(dados):
+    """Garante tipos/limites basicos para o front nao quebrar."""
+    def _int(x, d=0):
+        try:
+            return max(0, min(100, int(round(float(x)))))
+        except Exception:
+            return d
+    for k in ("prob_casa", "prob_empate", "prob_fora", "confianca_score"):
+        if k in dados:
+            dados[k] = _int(dados[k])
+    dados["confianca"] = _norm_conf(dados.get("confianca"))
+    if not dados.get("confianca_score"):
+        dados["confianca_score"] = {"Alta": 78, "Média": 55, "Baixa": 32}.get(dados["confianca"], 50)
+    for lista in ("confianca_motivos", "placares_alt", "artilheiros", "leitura", "forcas_casa", "forcas_fora"):
+        if not isinstance(dados.get(lista), list):
+            dados[lista] = []
+    for a in dados.get("artilheiros", []):
+        if isinstance(a, dict):
+            a["prob_gol"] = _int(a.get("prob_gol"))
+    if not isinstance(dados.get("indicadores"), dict):
+        dados["indicadores"] = {}
+    return dados
 
 
 def analisar(partida, contexto, cfg):
@@ -209,17 +222,28 @@ def analisar(partida, contexto, cfg):
     chave = cfg.get("anthropic_api_key", "")
     mensagem = _montar_mensagem(partida, contexto)
     texto = _chamar_claude(SYSTEM_PROMPT, mensagem, modelo, chave)
-    confianca = _extrair_confianca(texto)
-    prognostico = _extrair_prognostico(texto)
-    # remove as linhas tecnicas (CONFIANCA / PROGNOSTICO) do texto exibido
-    linhas = [l for l in texto.splitlines()
-              if not l.strip().upper().startswith("CONFIANCA:")
-              and not l.strip().upper().startswith("PROGNOSTICO:")]
-    relatorio = "\n".join(linhas).strip()
+
+    dados = None
+    try:
+        dados = _saneia(_extrair_json(texto))
+    except Exception:
+        dados = None
+
+    if dados:
+        return {
+            "ok": True,
+            "dados": dados,
+            "relatorio": (dados.get("detalhes") or "").strip(),  # texto opcional ("ver detalhes")
+            "confianca": _norm_conf(dados.get("confianca")),
+            "prognostico": _norm_prog(dados.get("prognostico"), dados),
+            "modelo": modelo,
+        }
+    # Fallback: se o JSON falhar, mostra o texto cru (nao quebra o sistema).
     return {
         "ok": True,
-        "relatorio": relatorio,
-        "confianca": confianca,
-        "prognostico": prognostico,
+        "dados": None,
+        "relatorio": texto,
+        "confianca": "Média",
+        "prognostico": "",
         "modelo": modelo,
     }

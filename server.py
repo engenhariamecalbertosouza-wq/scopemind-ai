@@ -561,6 +561,7 @@ class Handler(BaseHTTPRequestHandler):
         if reaproveitar:
             resultado = {
                 "relatorio": existente.get("relatorio"),
+                "dados": existente.get("dados"),
                 "confianca": existente.get("confianca"),
                 "prognostico": existente.get("prognostico"),
                 "modelo": existente.get("modelo"),
