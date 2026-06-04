@@ -201,14 +201,12 @@ document.querySelectorAll(".menu-item").forEach((mi) => {
     $("#secao-agenda").classList.toggle("hidden", secao !== "agenda");
     $("#secao-aovivo").classList.toggle("hidden", secao !== "aovivo");
     $("#secao-encerrados").classList.toggle("hidden", secao !== "encerrados");
-    $("#secao-tabelas").classList.toggle("hidden", secao !== "tabelas");
     $("#secao-placar").classList.toggle("hidden", secao !== "placar");
     $("#secao-relatorios").classList.toggle("hidden", secao !== "relatorios");
     $("#secao-comunidade").classList.toggle("hidden", secao !== "comunidade");
     $("#secao-chat").classList.toggle("hidden", secao !== "chat");
     if (secao === "relatorios") carregarRelatorios();
     if (secao === "encerrados") carregarEncerrados();
-    if (secao === "tabelas") abrirTabelas();
     if (secao === "placar") carregarPlacar();
     if (secao === "comunidade") iniciarComunidade();
     if (secao === "aovivo") iniciarAoVivo(); else pararAoVivo();
@@ -840,56 +838,6 @@ function cardPlacar(it) {
       '<span style="color:' + m[1] + ';font-weight:700">' + m[0] + "</span></div>";
   return div;
 }
-
-// ===================== Tabelas / Classificação =====================
-function popularSelectTabela() {
-  const sel = $("#sel-tabela");
-  const atual = sel.value;
-  const vistos = new Set(), opts = [];
-  JOGOS.filter((j) => j.league_id).forEach((j) => {
-    const key = j.league_id + "|" + (j.season || "");
-    if (vistos.has(key)) return;
-    vistos.add(key);
-    opts.push({ key: key, nome: j.league + (j.country ? " (" + j.country + ")" : "") });
-  });
-  opts.sort((a, b) => a.nome.localeCompare(b.nome));
-  sel.innerHTML = '<option value="">Escolha um campeonato…</option>' +
-    opts.map((o) => '<option value="' + esc(o.key) + '">' + esc(o.nome) + "</option>").join("");
-  sel.value = atual;
-}
-function abrirTabelas() {
-  popularSelectTabela();
-  if (!$("#sel-tabela").value)
-    $("#tabela-conteudo").innerHTML = '<div class="vazio">Escolha um campeonato acima para ver a classificação. 🏆</div>';
-}
-$("#sel-tabela").addEventListener("change", async (e) => {
-  const v = e.target.value;
-  const cont = $("#tabela-conteudo");
-  if (!v) { cont.innerHTML = ""; return; }
-  const partes = v.split("|"), league = partes[0], season = partes[1] || "";
-  cont.innerHTML = '<div class="vazio">Carregando classificação…</div>';
-  try {
-    const d = await api("/api/tabela?league=" + encodeURIComponent(league) + "&season=" + encodeURIComponent(season));
-    const t = d.tabela || [];
-    if (!t.length) {
-      cont.innerHTML = '<div class="vazio">📊 A classificação da <b>temporada atual</b> não vem no plano <b>gratuito</b> da API-Football (ele só libera temporadas passadas). Com um plano pago, a tabela ao vivo aparece aqui automaticamente — o módulo já está pronto.</div>';
-      return;
-    }
-    let html = '<table class="classificacao"><thead><tr><th>#</th><th style="text-align:left">Time</th>' +
-      "<th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead><tbody>";
-    t.forEach((r) => {
-      const v2 = (x) => (x === null || x === undefined ? "" : x);
-      html += "<tr><td class='pos'>" + v2(r.rank) + "</td>" +
-        "<td class='time'>" + (r.logo ? '<img src="' + esc(r.logo) + '" alt="" loading="lazy"/>' : "") + esc(r.time) + "</td>" +
-        "<td class='pts'>" + v2(r.pts) + "</td><td>" + v2(r.j) + "</td><td>" + v2(r.v) + "</td><td>" +
-        v2(r.e) + "</td><td>" + v2(r.d) + "</td><td>" + v2(r.sg) + "</td></tr>";
-    });
-    html += "</tbody></table>";
-    cont.innerHTML = html;
-  } catch (err) {
-    cont.innerHTML = '<div class="vazio">Erro: ' + err.message + "</div>";
-  }
-});
 
 // ===================== Chat ao vivo =====================
 function iniciarChat() {
