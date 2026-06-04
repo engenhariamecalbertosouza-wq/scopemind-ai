@@ -73,7 +73,7 @@ def carregar_config():
         usuario = (os.environ.get("ADMIN_USER", "admin").strip() or "admin")
         salt = "env-" + cfg.get("secret", "x")[:8]
         cfg.setdefault("usuarios", {})
-        cfg["usuarios"][usuario] = {"salt": salt, "hash": _hash_senha(os.environ["ADMIN_PASSWORD"], salt), "role": "admin"}
+        cfg["usuarios"][usuario] = {"salt": salt, "hash": _hash_senha(os.environ["ADMIN_PASSWORD"].strip(), salt), "role": "admin"}
     return cfg
 
 
@@ -407,7 +407,7 @@ class Handler(BaseHTTPRequestHandler):
         cfg = carregar_config()
         dados = self._corpo_json()
         entrada = (dados.get("usuario") or "").strip()
-        senha = dados.get("senha") or ""
+        senha = (dados.get("senha") or "").strip()  # ignora espacos acidentais (autofill/copiar-colar)
         usuarios = cfg.get("usuarios", {})
         chave = entrada if entrada in usuarios else entrada.lower()
         u = usuarios.get(chave)
@@ -427,7 +427,7 @@ class Handler(BaseHTTPRequestHandler):
         nome = (dados.get("nome") or "").strip()
         email = (dados.get("email") or "").strip().lower()
         cpf = re.sub(r"\D", "", dados.get("cpf") or "")
-        senha = dados.get("senha") or ""
+        senha = (dados.get("senha") or "").strip()  # ignora espacos acidentais
         if len(nome) < 2:
             self._json({"erro": "Informe o seu nome."}, 400)
             return
