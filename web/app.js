@@ -24,6 +24,7 @@ let timerCarregando = null;
 let prepTimer = null;         // cronômetro dramático do cliente (30s)
 let VIP = localStorage.getItem("vip") === "1";
 let NOME = localStorage.getItem("nome") || "";
+let MEUS_JOGOS = new Set(JSON.parse(localStorage.getItem("meus_jogos") || "[]")); // jogos que o cliente já analisou (comprou)
 let timerChat = null;
 let CHAT_ULTIMO = 0;          // maior id de mensagem já recebido
 let CHAT_EU = null;           // quem sou eu no chat (vem do servidor)
@@ -99,6 +100,7 @@ function aplicarSessao(d) {
   localStorage.setItem("role", ROLE);
   localStorage.setItem("vip", VIP ? "1" : "0");
   localStorage.setItem("nome", NOME);
+  if (d.jogos_abertos) { MEUS_JOGOS = new Set(d.jogos_abertos); localStorage.setItem("meus_jogos", JSON.stringify([...MEUS_JOGOS])); }
   localStorage.setItem("rest", ANALISES_REST === null ? "" : ANALISES_REST);
 }
 function setRest(n) {
@@ -155,9 +157,9 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
   } catch (err) { $("#erro-cadastro").textContent = err.message; }
 });
 function sair() {
-  TOKEN = ""; ROLE = "admin"; ANALISES_REST = null; VIP = false; NOME = "";
+  TOKEN = ""; ROLE = "admin"; ANALISES_REST = null; VIP = false; NOME = ""; MEUS_JOGOS = new Set();
   pararChat(); pararAoVivo(); pararAgendaAuto();
-  localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("rest"); localStorage.removeItem("vip"); localStorage.removeItem("nome");
+  localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("rest"); localStorage.removeItem("vip"); localStorage.removeItem("nome"); localStorage.removeItem("meus_jogos");
   if ($("#saudacao")) $("#saudacao").textContent = "";
   $("#tela-app").classList.add("hidden"); $("#tela-login").classList.remove("hidden");
 }
@@ -183,6 +185,7 @@ async function entrarNoApp() {
   preencherDatasAbas();
   await atualizarStatus();
   await carregarRelatoriosSet();
+  if (ehCliente()) await carregarMeusJogos();
   carregarJogos();
   iniciarAgendaAuto();
 }
@@ -505,7 +508,8 @@ function cartaoJogo(j) {
     const d = (PERIODO !== "hoje" && j.data) ? esc(formatarData(j.data).slice(0, 5)) + " · " : "";
     quando = '<span class="jr-quando">🕒 ' + d + esc(j.time || "--:--") + "</span>";
   }
-  const analisado = (!ehCliente() && REPORTS_SET.has(chaveJogo(j))) ? '<span class="jr-analisado">📄 analisado</span>' : "";
+  const temMinha = ehCliente() ? MEUS_JOGOS.has(chaveJogo(j)) : REPORTS_SET.has(chaveJogo(j));
+  const analisado = temMinha ? '<span class="jr-analisado">📄 ' + (ehCliente() ? "minha análise" : "analisado") + "</span>" : "";
   div.innerHTML =
     '<div class="jogo-linha">' +
       '<span class="jl-time">' + escudo(j.home_logo) + '<span class="jl-nome">' + esc(j.home) + "</span>" + estrelaTime(j.home) + "</span>" +
@@ -544,13 +548,18 @@ function abrirDetalhes(j) {
   $("#det-custo-aviso").classList.toggle("hidden", cli);     // esconde o aviso de custo do cliente
   const encerrado = ehFim(j.status);
   $("#btn-analisar-ia").classList.toggle("hidden", encerrado);
-  $("#btn-analisar-ia").textContent = cli ? "🔮 Ver análise completa" : "🧠 Analisar com IA";
+  const jaComprou = cli && MEUS_JOGOS.has(chaveJogo(j));
+  $("#btn-analisar-ia").textContent = cli
+    ? (jaComprou ? "📄 Ver análise completa novamente" : "🔮 Ver análise completa")
+    : "🧠 Analisar com IA";
   $("#det-encerrado").classList.toggle("hidden", !encerrado);
   abrir("modal-detalhes");
 }
 $("#btn-analisar-ia").addEventListener("click", () => {
-  if (ehCliente()) rodarAnaliseCliente(JOGO_ATUAL);
-  else rodarAnalise(JOGO_ATUAL);
+  if (ehCliente()) {
+    if (MEUS_JOGOS.has(chaveJogo(JOGO_ATUAL))) verMinhaAnalise(JOGO_ATUAL);  // já comprou: instantâneo, grátis
+    else rodarAnaliseCliente(JOGO_ATUAL);
+  } else rodarAnalise(JOGO_ATUAL);
 });
 $("#btn-ver-salvo").addEventListener("click", () => verSalvo(chaveJogo(JOGO_ATUAL)));
 
@@ -650,11 +659,31 @@ async function rodarAnaliseCliente(j) {
   await new Promise((r) => setTimeout(r, faltam));
   fecharPreparando();
   if (resp.chave) REPORTS_SET.add(resp.chave);
+  MEUS_JOGOS.add(chaveJogo(j)); localStorage.setItem("meus_jogos", JSON.stringify([...MEUS_JOGOS]));
   if (resp.analises_restantes !== undefined) setRest(resp.analises_restantes);
   abrirModalRelatorio(j);
   preencherRelatorio(Object.assign({}, j, {
     confianca: resp.confianca, relatorio: resp.relatorio, dados: resp.dados, chave: resp.chave, desatualizado: false,
   }));
+}
+// Cliente revendo uma análise que JÁ comprou: sem cronômetro, sem custo (instantâneo).
+async function verMinhaAnalise(j) {
+  if (!j) return;
+  fechar("modal-detalhes");
+  abrirModalRelatorio(j);
+  $("#rel-conteudo").classList.add("hidden");
+  $("#rel-carregando").classList.remove("hidden");
+  $("#carregando-texto").textContent = "Abrindo a sua análise…";
+  try {
+    const r = await api("/api/analisar", { method: "POST", body: JSON.stringify(j) });
+    if (r.chave) REPORTS_SET.add(r.chave);
+    if (r.analises_restantes !== undefined) setRest(r.analises_restantes);
+    preencherRelatorio(Object.assign({}, j, {
+      confianca: r.confianca, relatorio: r.relatorio, dados: r.dados, chave: r.chave, desatualizado: false,
+    }));
+  } catch (e) {
+    fechar("modal-relatorio"); toast("⚠️ " + e.message); abrirDetalhes(j);
+  }
 }
 
 // ===================== Ver / refazer / excluir =====================
@@ -719,6 +748,12 @@ function preencherRelatorio(dados) {
 // ===================== RELATÓRIOS (seção) =====================
 async function carregarRelatoriosSet() {
   try { const d = await api("/api/relatorios"); REPORTS_SET = new Set((d.relatorios || []).map((r) => r.chave)); } catch (e) {}
+}
+async function carregarMeusJogos() {
+  try {
+    const d = await api("/api/conta");
+    if (d.jogos_abertos) { MEUS_JOGOS = new Set(d.jogos_abertos); localStorage.setItem("meus_jogos", JSON.stringify([...MEUS_JOGOS])); }
+  } catch (e) {}
 }
 async function carregarRelatorios() {
   const lista = $("#lista-relatorios");

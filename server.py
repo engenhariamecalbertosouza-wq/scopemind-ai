@@ -465,9 +465,10 @@ class Handler(BaseHTTPRequestHandler):
             role = u.get("role", "admin")
             resp = {"ok": True, "token": gerar_token(cfg, chave), "usuario": u.get("nome", chave), "role": role,
                     "vip": _vip_valido(u)}
-            if role == "cliente" and not _vip_valido(u):
-                limite = _limite_gratis(cfg)
-                resp["analises_restantes"] = max(0, limite - len(u.get("jogos_abertos", [])))
+            if role == "cliente":
+                resp["jogos_abertos"] = list(u.get("jogos_abertos", []))  # análises já compradas
+                if not _vip_valido(u):
+                    resp["analises_restantes"] = max(0, _limite_gratis(cfg) - len(u.get("jogos_abertos", [])))
             self._json(resp)
         else:
             self._json({"ok": False, "erro": "Usuário ou senha incorretos."}, 401)
@@ -509,7 +510,7 @@ class Handler(BaseHTTPRequestHandler):
         cfg = carregar_config()
         limite = _limite_gratis(cfg)
         self._json({"ok": True, "token": gerar_token(cfg, email), "usuario": nome,
-                    "role": "cliente", "vip": False, "analises_restantes": limite})
+                    "role": "cliente", "vip": False, "analises_restantes": limite, "jogos_abertos": []})
 
     def _configurar(self):
         cfg = carregar_config()
@@ -964,6 +965,7 @@ class Handler(BaseHTTPRequestHandler):
             "vip_ate_data": data_fim,
             "pode_trocar_senha": (not admin),
             "criado_em": u.get("criado_em", ""),
+            "jogos_abertos": list(u.get("jogos_abertos", [])),  # análises já compradas pelo cliente
         }
         if (not admin) and (not vip):
             resp["analises_restantes"] = max(0, _limite_gratis(cfg) - len(u.get("jogos_abertos", [])))
