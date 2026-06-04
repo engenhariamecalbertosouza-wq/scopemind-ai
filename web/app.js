@@ -110,6 +110,7 @@ function aplicarPapel() {
   // Cliente NÃO vê o módulo "Relatórios salvos" (evita ver/abrir análises de graça).
   const miRel = document.querySelector('.menu-item[data-secao="relatorios"]');
   if (miRel) miRel.classList.toggle("hidden", cliente);
+  const wf = $("#wpp-flutuante"); if (wf) wf.classList.toggle("hidden", !cliente);  // suporte WhatsApp só p/ cliente
   const b = $("#badge-cliente");
   if (cliente && VIP) {
     b.textContent = "⭐ Membro VIP";

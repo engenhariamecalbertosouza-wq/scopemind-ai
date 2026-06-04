@@ -734,3 +734,20 @@ table.com-rank tr:hover td { background: rgba(255,255,255,.03); }
 .com-aviso-resp { margin: 22px 4px 4px; padding: 12px 16px; background: rgba(12,35,54,.6); border: 1px solid #1a3f63; border-radius: 10px; }
 .com-aviso-resp p { color: var(--texto-fraco); font-size: 12.5px; line-height: 1.5; margin: 4px 0; }
 .com-aviso-resp b { color: #cfe0f5; }
+
+/* ---------------- BOTÕES DE WHATSAPP (suporte) ---------------- */
+.btn-wpp {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
+  background: #25d366; color: #04240f; font-weight: 800; font-size: 15px;
+  padding: 12px 22px; border-radius: 999px; text-decoration: none;
+  box-shadow: 0 6px 18px rgba(37,211,102,.4); transition: transform .08s ease, filter .2s ease;
+}
+.btn-wpp:hover { filter: brightness(1.06); transform: translateY(-2px); }
+.wpp-flutuante {
+  position: fixed; right: 18px; bottom: 18px; z-index: 90;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #25d366; color: #04240f; font-weight: 800; font-size: 14px;
+  padding: 12px 18px; border-radius: 999px; text-decoration: none;
+  box-shadow: 0 8px 22px rgba(37,211,102,.45); transition: transform .1s ease, filter .2s ease;
+}
+.wpp-flutuante:hover { filter: brightness(1.07); transform: translateY(-2px); }
