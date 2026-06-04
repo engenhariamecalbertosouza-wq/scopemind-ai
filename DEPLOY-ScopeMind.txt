@@ -1,62 +1,102 @@
 ==================================================================
    GUIA DE HOSPEDAGEM — ScopeMind AI (na Render)
 ==================================================================
-Objetivo: colocar o ScopeMind AI no ar, PRIVADO (só você), sempre ligado.
+Objetivo: colocar o ScopeMind AI no ar, sempre ligado, com os dados
+dos usuarios (cadastros, chat, palpites/XP, relatorios) SALVOS de
+verdade — sem sumir a cada atualizacao.
 
-VOCÊ VAI PRECISAR (uns 10–15 min):
-  - Conta no GitHub (grátis) ......... github.com
-  - Conta na Render (grátis p/ criar; o plano "sempre ligado"
-    custa ~US$7/mês) .................. render.com
-  - Suas 2 chaves (IA Anthropic e API-Football) — já estão no app.
+VOCE VAI PRECISAR (uns 15-20 min):
+  - Conta no GitHub (gratis) ......... github.com
+  - Conta na Render (gratis p/ criar; o plano "sempre ligado"
+    custa ~US$7/mes) .................. render.com
+  - Suas 2 chaves (IA Anthropic e API-Football) — ja estao no app.
 
-------------------------------------------------------------------
-PASSO 1 — Colocar o código no GitHub
-------------------------------------------------------------------
-Me peça aqui no Claude: "me ajude a subir o ScopeMind pro GitHub".
-Eu preparo tudo e te guio.
-IMPORTANTE: o arquivo config.json (com suas chaves) NÃO vai pro
-GitHub — ele fica só no seu PC (já está protegido pelo .gitignore).
-
-------------------------------------------------------------------
-PASSO 2 — Criar o serviço na Render
-------------------------------------------------------------------
-1. Entre em render.com e crie a conta / faça login.
-2. Clique em "New +" -> "Web Service" (ou "Blueprint", se ele
-   detectar o arquivo render.yaml automaticamente).
-3. Conecte sua conta do GitHub e escolha o repositório do ScopeMind.
-4. Se pedir as configurações, use:
-       Language/Runtime ... Python 3
-       Build Command ...... pip install -r requirements.txt
-       Start Command ...... python server.py
-       Instance Type ...... Starter  (~US$7/mês, sempre ligado)
+==================================================================
+POR QUE PRECISA DE "DISCO PERMANENTE" (importante!)
+==================================================================
+Na Render, a cada atualizacao do site os ARQUIVOS voltam ao que esta
+no GitHub. Como o app guarda cadastros, chat e palpites em arquivos,
+SEM um disco permanente esses dados sumiriam a cada atualizacao.
+A solucao ja esta configurada: o arquivo render.yaml cria um DISCO
+PERMANENTE (~US$0,25/mes por 1 GB) montado em /var/data, e o app
+salva tudo la (variavel DATA_DIR=/var/data). Assim NADA se perde.
+>> Por isso, faca o deploy pelo "Blueprint" (passo 2), que ja monta
+   o disco e as variaveis automaticamente.
 
 ------------------------------------------------------------------
-PASSO 3 — Variáveis secretas (Environment)
+PASSO 1 — Colocar o codigo no GitHub
 ------------------------------------------------------------------
-Na aba "Environment", adicione estas variáveis:
+O repositorio local JA ESTA PRONTO (com o 1o commit). Falta criar o
+repositorio la no GitHub e enviar. Faca assim:
 
-   ANTHROPIC_API_KEY = sua chave da Anthropic (começa com sk-ant-)
+1. Entre em github.com, faca login, clique no "+" (canto superior
+   direito) -> "New repository".
+2. Repository name: scopemind-ai   (pode ser outro nome)
+   Deixe PRIVADO. NAO marque "Add a README".  Clique "Create repository".
+3. O GitHub mostra a URL do repo (ex.: https://github.com/SEU-USUARIO/scopemind-ai.git).
+4. No seu PC, me peca aqui no Claude: "sobe pro GitHub <cole a URL>".
+   Eu rodo os comandos de envio (push) pra voce. Na primeira vez o
+   Git abre uma janela pedindo seu login do GitHub — e so autorizar.
+
+   (Se preferir fazer na mao, na pasta do projeto:
+       git remote add origin <URL-do-seu-repo>
+       git push -u origin main )
+
+IMPORTANTE: o config.json (com suas chaves) NAO vai pro GitHub —
+ja esta protegido pelo .gitignore. Suas chaves so entram na Render
+como "variaveis secretas" (passo 3).
+
+------------------------------------------------------------------
+PASSO 2 — Criar o servico na Render (pelo Blueprint)
+------------------------------------------------------------------
+1. Entre em render.com e crie a conta / faca login.
+   (De preferencia, entre com o GitHub — facilita conectar o repo.)
+2. Clique em "New +" -> "Blueprint".
+3. Conecte sua conta do GitHub e escolha o repositorio scopemind-ai.
+4. A Render le o render.yaml e ja mostra: 1 Web Service (plano
+   Starter) + 1 Disco (scopemind-dados, 1 GB em /var/data).
+5. Ele vai pedir os valores das variaveis SECRETAS (passo 3).
+
+------------------------------------------------------------------
+PASSO 3 — Variaveis secretas (Environment)
+------------------------------------------------------------------
+Preencha SO estas tres (as outras ja vem prontas do render.yaml):
+
+   ANTHROPIC_API_KEY = sua chave da Anthropic (comeca com sk-ant-)
    FOOTBALL_API_KEY  = sua chave da API-Football
-   ADMIN_USER        = admin
-   ADMIN_PASSWORD    = UMA SENHA FORTE SUA  (será a senha do login!)
-   MAX_ANALISES_DIA  = 30   (teto de análises por dia — protege custo)
+   ADMIN_PASSWORD    = UMA SENHA FORTE SUA  (sera a senha do login admin!)
 
-   (A APP_SECRET é gerada automaticamente pela Render.)
+Ja vem configuradas automaticamente (nao precisa mexer):
+   DATA_DIR=/var/data · ADMIN_USER=admin · MAX_ANALISES_DIA=30 ·
+   LIMITE_ANALISES_GRATIS=3 · PYTHON_VERSION=3.12.10 ·
+   APP_SECRET (a Render gera 1 vez e mantem — mantem os logins estaveis).
 
 ------------------------------------------------------------------
 PASSO 4 — Publicar
 ------------------------------------------------------------------
-Clique em "Create Web Service" / "Deploy" e aguarde uns minutos.
-No fim, a Render te dá um link parecido com:
+Clique em "Apply" / "Create" e aguarde uns minutos (primeiro deploy).
+No fim, a Render te da um link parecido com:
        https://scopemind-ai.onrender.com
-Abra esse link, faça login com seu usuário e a SENHA FORTE. Pronto! 🎉
+Abra o link e faca login:
+   - Admin (voce): usuario "admin" + a SENHA FORTE do ADMIN_PASSWORD.
+   - Clientes: criam conta com e-mail na propria tela ("Criar conta").
 
 ------------------------------------------------------------------
-DICAS
+COMO ATUALIZAR O SITE DEPOIS
 ------------------------------------------------------------------
-- Trocar a senha depois: altere a variável ADMIN_PASSWORD na Render
-  e clique em "Manual Deploy".
-- Suas chaves ficam SÓ nas variáveis secretas da Render — nunca no código.
-- Custo: hospedagem ~US$7/mês + uso das APIs (a IA cobra por análise;
-  o teto diário MAX_ANALISES_DIA protege você de gastos inesperados).
+Sempre que mexermos no app, e so enviar pro GitHub de novo
+(me peca: "atualiza o site"). A Render percebe e republica sozinha.
+Gracas ao disco permanente, os dados dos usuarios CONTINUAM la.
+
+------------------------------------------------------------------
+DICAS / CUSTOS
+------------------------------------------------------------------
+- Custo mensal: ~US$7 (servico) + ~US$0,25 (disco 1 GB) + uso das
+  APIs (a IA cobra por analise; MAX_ANALISES_DIA protege voce).
+- Trocar a senha do admin: altere ADMIN_PASSWORD na Render e clique
+  em "Manual Deploy".
+- Endereco proprio (ex.: scopemind.com.br): da pra ligar depois,
+  na aba "Settings -> Custom Domain" (o dominio e pago a parte).
+- Suas chaves ficam SO nas variaveis secretas da Render — nunca no codigo.
 - Qualquer passo que travar: tira um print e me manda que eu te ajudo.
+==================================================================

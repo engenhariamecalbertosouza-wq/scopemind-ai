@@ -209,14 +209,20 @@ Risco/Incerteza (tem poder de veto na confiança), Probabilidade/Cenários, Cons
 - **Esclarecido ao usuário:** **GitHub** só guarda o código; **Vercel NÃO serve** (é pra frontend/serverless, não
   roda servidor Python ligado 24h); usar **Render** para rodar. Decisão: **plano Starter (~US$7/mês), privado**.
 - Já existem: `render.yaml`, `requirements.txt`, `runtime.txt`, `.gitignore`, `DEPLOY-ScopeMind.txt`.
-- **AINDA NÃO HOSPEDADO.** Próximo passo do deploy: subir pro GitHub + criar serviço na Render + setar as env vars.
-- ⚠️ **Atenção forte:** na Render o disco é **efêmero** (zera a cada deploy). Hoje `config.json` (usuários/cadastros),
-  `relatorios/` e o chat (quando existir) ficam em **arquivos locais**. Para ter **clientes reais + chat em produção**,
-  vai ser preciso um **banco de dados / disco persistente**.
+- **PERSISTÊNCIA RESOLVIDA (2026-06-04):** a Render apaga os arquivos a cada deploy (disco efêmero). Em vez de
+  reescrever tudo para um banco, usamos o **DISCO PERMANENTE da Render** (~US$0,25/GB/mês). Todos os módulos que
+  gravam dados agora usam a variável **`DATA_DIR`** (`os.environ.get("DATA_DIR") or BASE_DIR`): local = a própria
+  pasta; na hospedagem = `/var/data` (o disco). Cobre `config.json`, `cache/`, `relatorios/`, `chat/`, `comunidade/`.
+  O `render.yaml` já declara o disco (`scopemind-dados`, 1 GB, `mountPath: /var/data`) e seta `DATA_DIR=/var/data`.
+  **Deploy pelo Blueprint** (lê o render.yaml e monta disco + variáveis automaticamente).
+- **Git:** repositório **inicializado** e com **1º commit** na branch `main` (config.json fica fora pelo `.gitignore`).
+  Falta: criar o repo no GitHub, `git remote add origin <url>` + `git push -u origin main`, e criar o Blueprint na Render.
+- **AINDA NÃO HOSPEDADO** (faltam os cliques do Alberto no GitHub/Render — guia em `DEPLOY-ScopeMind.txt`).
 
 ### Variáveis de ambiente (na hospedagem)
-`ANTHROPIC_API_KEY`, `FOOTBALL_API_KEY`, `ADMIN_USER`, `ADMIN_PASSWORD`, `APP_SECRET` (gerada),
-`MAX_ANALISES_DIA` (padrão 30), `LIMITE_ANALISES_GRATIS` (padrão 3), `PORT` (a Render injeta), `PYTHON_VERSION`.
+`DATA_DIR` (=/var/data, o disco), `ANTHROPIC_API_KEY`, `FOOTBALL_API_KEY`, `ADMIN_USER`, `ADMIN_PASSWORD`,
+`APP_SECRET` (gerada pela Render), `MAX_ANALISES_DIA` (padrão 30), `LIMITE_ANALISES_GRATIS` (padrão 3),
+`PORT` (a Render injeta), `PYTHON_VERSION`. **Secretas (você cola): `ANTHROPIC_API_KEY`, `FOOTBALL_API_KEY`, `ADMIN_PASSWORD`.**
 
 ---
 
