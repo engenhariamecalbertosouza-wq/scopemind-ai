@@ -162,6 +162,18 @@ def _pode_chat(u):
     return _eh_admin(u) or bool(u.get("vip"))
 
 
+def _limite_gratis(cfg):
+    """Quantas analises gratis cada cliente comum tem. O admin define pela
+    engrenagem (config.json); se nao definiu, usa a variavel de ambiente; senao, 3."""
+    v = cfg.get("limite_analises_gratis")
+    if v is None or v == "":
+        v = os.environ.get("LIMITE_ANALISES_GRATIS", "3")
+    try:
+        return max(0, int(v))
+    except Exception:
+        return 3
+
+
 # ----------------------------------------------------------------------------
 # Servidor HTTP
 # ----------------------------------------------------------------------------
@@ -255,6 +267,7 @@ class Handler(BaseHTTPRequestHandler):
                 "ao_vivo_ia": bool(cfg.get("anthropic_api_key")),
                 "modelo": cfg.get("anthropic_model", "claude-opus-4-8"),
                 "auto_reanalise": bool(cfg.get("auto_reanalise")),
+                "limite_analises_gratis": _limite_gratis(cfg),
                 "ultima_atualizacao": ULTIMA_ATUALIZACAO["quando"],
             })
             return
@@ -416,7 +429,7 @@ class Handler(BaseHTTPRequestHandler):
             resp = {"ok": True, "token": gerar_token(cfg, chave), "usuario": u.get("nome", chave), "role": role,
                     "vip": _eh_admin(u) or bool(u.get("vip"))}
             if role == "cliente" and not u.get("vip"):
-                limite = int(os.environ.get("LIMITE_ANALISES_GRATIS", "3"))
+                limite = _limite_gratis(cfg)
                 resp["analises_restantes"] = max(0, limite - len(u.get("jogos_abertos", [])))
             self._json(resp)
         else:
@@ -457,7 +470,7 @@ class Handler(BaseHTTPRequestHandler):
         }
         salvar_config(raw)
         cfg = carregar_config()
-        limite = int(os.environ.get("LIMITE_ANALISES_GRATIS", "3"))
+        limite = _limite_gratis(cfg)
         self._json({"ok": True, "token": gerar_token(cfg, email), "usuario": nome,
                     "role": "cliente", "vip": False, "analises_restantes": limite})
 
@@ -476,6 +489,11 @@ class Handler(BaseHTTPRequestHandler):
             cfg["anthropic_model"] = dados["anthropic_model"].strip()
         if "auto_reanalise" in dados:
             cfg["auto_reanalise"] = bool(dados["auto_reanalise"])
+        if "limite_analises_gratis" in dados:
+            try:
+                cfg["limite_analises_gratis"] = max(0, int(dados["limite_analises_gratis"]))
+            except Exception:
+                pass
         salvar_config(cfg)
         self._json({"ok": True})
 
@@ -490,7 +508,7 @@ class Handler(BaseHTTPRequestHandler):
         is_vip = bool(u.get("vip"))
         # So o cliente COMUM (nao-VIP) tem limite. VIP e admin = ilimitado.
         cliente_limitado = (u.get("role", "admin") == "cliente") and not is_vip
-        limite_gratis = int(os.environ.get("LIMITE_ANALISES_GRATIS", "3"))
+        limite_gratis = _limite_gratis(cfg)
 
         partida = self._corpo_json()
         import datetime as _dt

@@ -187,6 +187,7 @@ async function atualizarStatus() {
     else { badge.textContent = "modo demonstração"; badge.className = "badge badge-demo"; }
     $("#cfg-modelo").value = s.modelo || "claude-opus-4-8";
     $("#cfg-auto").checked = !!s.auto_reanalise;
+    if (s.limite_analises_gratis !== undefined && $("#cfg-limite")) $("#cfg-limite").value = s.limite_analises_gratis;
     $("#cfg-ultima").textContent = s.ultima_atualizacao && s.ultima_atualizacao !== "ainda nao"
       ? ("Última atualização automática: " + s.ultima_atualizacao) : "";
   } catch (e) {}
@@ -1332,6 +1333,7 @@ $("#btn-salvar-config").addEventListener("click", async () => {
   const corpo = { anthropic_model: $("#cfg-modelo").value, auto_reanalise: $("#cfg-auto").checked };
   if ($("#cfg-anthropic").value.trim()) corpo.anthropic_api_key = $("#cfg-anthropic").value.trim();
   if ($("#cfg-football").value.trim()) corpo.football_api_key = $("#cfg-football").value.trim();
+  if ($("#cfg-limite").value !== "") corpo.limite_analises_gratis = parseInt($("#cfg-limite").value);
   try {
     await api("/api/configurar", { method: "POST", body: JSON.stringify(corpo) });
     $("#config-ok").textContent = "✅ Salvo! Atualizando…";
