@@ -195,6 +195,7 @@ async function atualizarStatus() {
     $("#cfg-modelo").value = s.modelo || "claude-opus-4-8";
     $("#cfg-auto").checked = !!s.auto_reanalise;
     if (s.limite_analises_gratis !== undefined && $("#cfg-limite")) $("#cfg-limite").value = s.limite_analises_gratis;
+    if (s.vip_dias !== undefined && $("#cfg-vipdias")) $("#cfg-vipdias").value = s.vip_dias;
     $("#cfg-ultima").textContent = s.ultima_atualizacao && s.ultima_atualizacao !== "ainda nao"
       ? ("Última atualização automática: " + s.ultima_atualizacao) : "";
   } catch (e) {}
@@ -1504,6 +1505,7 @@ $("#btn-salvar-config").addEventListener("click", async () => {
   if ($("#cfg-anthropic").value.trim()) corpo.anthropic_api_key = $("#cfg-anthropic").value.trim();
   if ($("#cfg-football").value.trim()) corpo.football_api_key = $("#cfg-football").value.trim();
   if ($("#cfg-limite").value !== "") corpo.limite_analises_gratis = parseInt($("#cfg-limite").value);
+  if ($("#cfg-vipdias").value !== "") corpo.vip_dias = parseInt($("#cfg-vipdias").value);
   try {
     await api("/api/configurar", { method: "POST", body: JSON.stringify(corpo) });
     $("#config-ok").textContent = "✅ Salvo! Atualizando…";

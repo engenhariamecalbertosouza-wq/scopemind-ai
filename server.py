@@ -193,6 +193,17 @@ def _vip_valido(u):
         return True
 
 
+def _vip_dias(cfg):
+    """Duracao do VIP em dias: config do admin (engrenagem) > variavel de ambiente > 30."""
+    v = cfg.get("vip_dias")
+    if v is None or v == "":
+        v = os.environ.get("VIP_DIAS", "30")
+    try:
+        return max(1, int(v))
+    except Exception:
+        return 30
+
+
 # ----------------------------------------------------------------------------
 # Servidor HTTP
 # ----------------------------------------------------------------------------
@@ -288,6 +299,7 @@ class Handler(BaseHTTPRequestHandler):
                 "modelo": cfg.get("anthropic_model", "claude-opus-4-8"),
                 "auto_reanalise": bool(cfg.get("auto_reanalise")),
                 "limite_analises_gratis": _limite_gratis(cfg),
+                "vip_dias": _vip_dias(cfg),
                 "ultima_atualizacao": ULTIMA_ATUALIZACAO["quando"],
             })
             return
@@ -519,6 +531,11 @@ class Handler(BaseHTTPRequestHandler):
                 cfg["limite_analises_gratis"] = max(0, int(dados["limite_analises_gratis"]))
             except Exception:
                 pass
+        if "vip_dias" in dados:
+            try:
+                cfg["vip_dias"] = max(1, int(dados["vip_dias"]))
+            except Exception:
+                pass
         salvar_config(cfg)
         self._json({"ok": True})
 
@@ -738,8 +755,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if "vip" in dados:
             alvo["vip"] = bool(dados["vip"])
-            # Ao tornar VIP, define o prazo de VIP_DIAS dias (renovar = clicar de novo).
-            alvo["vip_ate"] = (time.time() + VIP_DIAS * 86400) if dados["vip"] else None
+            # Ao tornar VIP, define o prazo (renovar = clicar de novo).
+            alvo["vip_ate"] = (time.time() + _vip_dias(cfg) * 86400) if dados["vip"] else None
         if "suspenso" in dados:
             alvo["suspenso"] = bool(dados["suspenso"])
             if not dados["suspenso"]:
@@ -942,7 +959,7 @@ class Handler(BaseHTTPRequestHandler):
             "admin": admin,
             "role": "admin" if admin else ("vip" if vip else "cliente"),
             "vip": vip,
-            "vip_dias_total": VIP_DIAS,
+            "vip_dias_total": _vip_dias(cfg),
             "vip_dias_restantes": dias_rest,
             "vip_ate_data": data_fim,
             "pode_trocar_senha": (not admin),
