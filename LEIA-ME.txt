@@ -1,0 +1,65 @@
+============================================================
+   ScopeMind AI  —  Análise esportiva avançada com IA
+============================================================
+
+O que é:
+Um aplicativo que roda no SEU computador, com tela de login e os jogos
+de HOJE, da SEMANA e do MÊS (futebol do mundo todo), incluindo "onde
+assistir". Ao clicar num jogo, 10 agentes de IA "doutores" fazem uma
+análise completa (estatística, tática, elenco, motivação, risco,
+cenários) e entregam um relatório com grau de confiança.
+
+⚠️ IMPORTANTE: é uma análise PROBABILÍSTICA, nunca uma garantia de
+resultado. O futebol é imprevisível — nenhuma análise elimina o risco.
+
+------------------------------------------------------------
+COMO ABRIR
+------------------------------------------------------------
+1) Dê dois cliques no arquivo  INICIAR.bat
+2) Vai abrir uma janela preta (o "motor") e, em seguida, o navegador.
+   -> NÃO feche a janela preta enquanto estiver usando o app.
+3) No navegador, faça login:
+      usuário:  admin
+      senha:    admin
+
+Se o navegador não abrir sozinho, digite na barra de endereços:
+      http://localhost:8765
+
+------------------------------------------------------------
+MODO DEMONSTRAÇÃO x AO VIVO
+------------------------------------------------------------
+- Sem chaves, o app abre em "modo demonstração" (jogos de exemplo).
+- Para jogos REAIS e análises REAIS, você cola 2 chaves (passo abaixo).
+
+------------------------------------------------------------
+CHAVE 1 — IA (Anthropic / Claude)  [OBRIGATÓRIA p/ analisar]
+------------------------------------------------------------
+É o "cérebro" dos agentes. Como obter:
+1) Acesse:  https://console.anthropic.com
+2) Crie/entre na conta.
+3) Vá em "Billing" e adicione um crédito (ex.: US$ 5).
+4) Vá em "API Keys" -> "Create Key" e copie a chave (começa com sk-ant-).
+5) No app, clique na engrenagem (⚙️) e cole no campo da IA. Salvar.
+
+Custo: cada análise gasta poucos centavos de dólar. No modelo "Opus"
+(o mais inteligente) custa um pouco mais; você pode trocar para "Sonnet"
+na engrenagem para gastar menos.
+
+------------------------------------------------------------
+CHAVE 2 — Dados de futebol (API-Football)  [p/ jogos ao vivo]
+------------------------------------------------------------
+Traz os jogos reais do mundo todo. Plano gratuito = 100 consultas/dia.
+1) Acesse:  https://dashboard.api-football.com/register
+2) Confirme o e-mail e entre.
+3) Copie sua "API Key".
+4) No app, clique na engrenagem (⚙️) e cole no campo de dados. Salvar.
+
+------------------------------------------------------------
+DICAS
+------------------------------------------------------------
+- Para fechar o app: feche o navegador e a janela preta.
+- As chaves ficam salvas só no seu PC (arquivo config.json).
+- A aba "Mês" consulta mais dados — use com calma no plano gratuito.
+- Quer trocar a senha de login? Me peça aqui no Claude que eu troco.
+
+Bom jogo e boas análises! ⚽

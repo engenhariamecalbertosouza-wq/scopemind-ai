@@ -1,0 +1,10 @@
+# Nunca enviar para o repositório (contém segredos ou é gerado automaticamente):
+config.json
+.serverpid
+cache/
+relatorios/
+chat/
+comunidade/
+__pycache__/
+*.pyc
+_*.py

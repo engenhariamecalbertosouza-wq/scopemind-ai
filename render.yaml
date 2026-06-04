@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: scopemind-ai
+    runtime: python
+    plan: starter                       # ~US$7/mes, sempre ligado
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    # DISCO PERMANENTE: guarda os DADOS (cadastros, chat, palpites/XP, relatorios)
+    # para que NAO sejam apagados a cada atualizacao do site. ~US$0,25/GB/mes.
+    disk:
+      name: scopemind-dados
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DATA_DIR                   # aponta os dados para o disco permanente
+        value: /var/data
+      - key: ANTHROPIC_API_KEY
+        sync: false                     # voce cola na Render (segredo)
+      - key: FOOTBALL_API_KEY
+        sync: false
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false                     # SUA senha forte de admin
+      - key: MAX_ANALISES_DIA
+        value: "30"
+      - key: LIMITE_ANALISES_GRATIS
+        value: "3"
+      - key: APP_SECRET
+        generateValue: true             # a Render gera 1 vez e mantem (logins estaveis)

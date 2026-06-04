@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScopeMind AI — Análise esportiva avançada com IA</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+</head>
+<body>
+
+  <!-- ====================== TELA DE LOGIN ====================== -->
+  <section id="tela-login" class="login-wrap">
+    <div class="login-card">
+      <img class="login-logo-img" src="/imagens/Logo.png" alt="ScopeMind AI — Análise esportiva avançada com múltiplos agentes de inteligência artificial" />
+      <form id="form-login">
+        <label>E-mail (ou usuário)</label>
+        <input id="in-usuario" type="text" autocomplete="username" value="" placeholder="seu@email.com" />
+        <label>Senha</label>
+        <input id="in-senha" type="password" autocomplete="current-password" value="" placeholder="sua senha" />
+        <button type="submit" class="btn-primario">Entrar</button>
+        <p id="erro-login" class="erro"></p>
+      </form>
+      <p class="troca-form" id="wrap-ir-cadastro">Não tem conta? <a id="ir-cadastro">Criar conta grátis ⚽</a></p>
+
+      <form id="form-cadastro" class="hidden">
+        <label>Nome</label>
+        <input id="cad-nome" type="text" placeholder="Seu nome completo" />
+        <label>CPF</label>
+        <input id="cad-cpf" type="text" inputmode="numeric" placeholder="000.000.000-00" />
+        <label>E-mail</label>
+        <input id="cad-email" type="email" placeholder="seu@email.com" />
+        <label>Senha</label>
+        <input id="cad-senha" type="password" placeholder="crie uma senha" />
+        <button type="submit" class="btn-primario">Criar conta — 3 análises grátis 🎁</button>
+        <p id="erro-cadastro" class="erro"></p>
+      </form>
+      <p class="troca-form hidden" id="wrap-ir-login"><a id="ir-login">← Já tenho conta</a></p>
+    </div>
+    <div class="venda-login">
+      <p>🧠 <b>100 agentes de IA especialistas</b> trabalhando em conjunto para analisar cada jogo com
+        profundidade: estatística, tática, elenco, motivação, riscos e cenários são debatidos até
+        formar uma <b>conclusão estratégica e bem fundamentada</b>. ⚽🤖</p>
+    </div>
+    <p class="rodape-login">Análise probabilística — nunca uma garantia de resultado.</p>
+  </section>
+
+  <!-- ====================== APLICATIVO ====================== -->
+  <div id="tela-app" class="hidden">
+    <header class="topo">
+      <div class="topo-esq">
+        <span class="logo-mini">🔭 ScopeMind <b>AI</b></span>
+        <span id="badge-modo" class="badge badge-demo">modo demonstração</span>
+      </div>
+      <div class="topo-dir">
+        <span id="badge-cliente" class="badge-cliente hidden"></span>
+        <button id="btn-config" class="btn-icone" title="Configurações (chaves)">⚙️</button>
+        <button id="btn-sair" class="btn-icone" title="Sair">⎋ Sair</button>
+      </div>
+    </header>
+
+    <nav class="menu-principal">
+      <button class="menu-item ativa" data-secao="agenda">📅 Agenda de jogos</button>
+      <button class="menu-item" data-secao="aovivo">🔴 Ao Vivo</button>
+      <button class="menu-item" data-secao="encerrados">✅ Encerrados</button>
+      <button class="menu-item" data-secao="tabelas">🏆 Tabelas</button>
+      <button class="menu-item" data-secao="placar">📈 Placar de Acertos</button>
+      <button class="menu-item" data-secao="relatorios">📄 Relatórios salvos</button>
+      <button class="menu-item" data-secao="comunidade">🎮 Placar da Comunidade</button>
+      <button class="menu-item" data-secao="chat">💬 Chat ao vivo</button>
+    </nav>
+
+    <!-- ---------- SEÇÃO: AGENDA ---------- -->
+    <section id="secao-agenda">
+      <nav class="abas">
+        <button class="aba ativa" data-periodo="hoje">Hoje <span class="aba-data" id="data-hoje"></span></button>
+        <button class="aba" data-periodo="amanha">Amanhã <span class="aba-data" id="data-amanha"></span></button>
+        <button id="btn-atualizar" class="btn-atualizar" title="Atualizar agenda">↻ Atualizar</button>
+      </nav>
+      <div class="barra-ferramentas">
+        <input id="busca" type="text" placeholder="🔎 Buscar time ou campeonato..." />
+        <select id="filtro-liga"><option value="">Todos os campeonatos</option></select>
+        <button id="btn-favoritos" class="btn-mini" title="Mostrar só meus favoritos">⭐ Favoritos</button>
+        <button id="btn-expandir" class="btn-mini" title="Abrir todas as pastas">⊞ Expandir</button>
+        <button id="btn-recolher" class="btn-mini" title="Fechar todas as pastas">⊟ Recolher</button>
+        <button id="btn-alertas" class="btn-mini" title="Avisar quando um jogo favorito vai começar">🔔 Alertas</button>
+      </div>
+      <main>
+        <div class="nota-confiabilidade">
+          📅 <b>Calendário focado em hoje e amanhã.</b> Mostramos só esses dois dias de propósito:
+          escalações, lesões e notícias mudam o tempo todo — quanto mais perto do jogo, mais
+          <b>confiável e atualizada</b> fica a análise dos nossos agentes.
+        </div>
+        <div id="resumo" class="resumo"></div>
+        <div id="info-periodo" class="info-periodo"></div>
+        <div id="lista-jogos"></div>
+      </main>
+    </section>
+
+    <!-- ---------- SEÇÃO: AO VIVO ---------- -->
+    <section id="secao-aovivo" class="hidden">
+      <main>
+        <div id="info-aovivo" class="info-periodo"></div>
+        <div id="lista-aovivo"></div>
+      </main>
+    </section>
+
+    <!-- ---------- SEÇÃO: ENCERRADOS ---------- -->
+    <section id="secao-encerrados" class="hidden">
+      <main>
+        <div id="info-encerrados" class="info-periodo">✅ Jogos já encerrados (ontem e hoje), com o placar final.</div>
+        <div id="lista-encerrados"></div>
+      </main>
+    </section>
+
+    <!-- ---------- SEÇÃO: TABELAS / CLASSIFICAÇÃO ---------- -->
+    <section id="secao-tabelas" class="hidden">
+      <div class="tabela-topo">
+        <select id="sel-tabela"><option value="">Escolha um campeonato…</option></select>
+      </div>
+      <div id="tabela-conteudo" class="tab-wrap"></div>
+    </section>
+
+    <!-- ---------- SEÇÃO: PLACAR DE ACERTOS ---------- -->
+    <section id="secao-placar" class="hidden">
+      <main>
+        <div class="info-periodo">📈 Desempenho das análises: comparamos o <b>palpite da IA</b> com o
+          <b>resultado real</b> (jogos de ontem e hoje). É a credibilidade do sistema, na prática.</div>
+        <div id="placar-resumo" class="resumo"></div>
+        <div id="placar-lista" class="grade-jogos"></div>
+      </main>
+    </section>
+
+    <!-- ---------- SEÇÃO: RELATÓRIOS ---------- -->
+    <section id="secao-relatorios" class="hidden">
+      <main>
+        <div class="info-periodo">📄 Suas análises ficam salvas aqui. Reabrir é <b>grátis</b> (não usa a IA).</div>
+        <div id="lista-relatorios" class="grade-jogos"></div>
+      </main>
+    </section>
+
+    <!-- ---------- SEÇÃO: PLACAR DA COMUNIDADE ---------- -->
+    <section id="secao-comunidade" class="hidden">
+      <main>
+        <div class="com-cabecalho">
+          <h2 class="com-titulo">🎮 Placar da Comunidade</h2>
+          <p class="com-sub">Palpite nos jogos, ganhe XP e suba no ranking da comunidade.</p>
+          <p class="com-desc">Dê seu palpite gratuito para os placares dos jogos, acumule XP quando acertar
+            e dispute posições no ranking da comunidade ScopeMind AI.</p>
+        </div>
+
+        <div id="com-xpcard" class="com-xpcard"><div class="vazio">Carregando seu perfil…</div></div>
+
+        <nav class="com-subtabs">
+          <button class="com-subtab ativa" data-subtab="palpitar">⚽ Palpitar</button>
+          <button class="com-subtab" data-subtab="ranking">🏆 Ranking</button>
+          <button class="com-subtab" data-subtab="desempenho">📊 Meu desempenho</button>
+          <button class="com-subtab com-so-admin hidden" data-subtab="admin">🛠️ Admin</button>
+        </nav>
+
+        <!-- PALPITAR -->
+        <div id="com-pane-palpitar" class="com-pane">
+          <div class="com-filtros">
+            <select id="com-filtro-liga"><option value="">Todas as competições</option></select>
+            <select id="com-filtro-status">
+              <option value="abertos">Abertos para palpite</option>
+              <option value="andamento">Em andamento / ao vivo</option>
+              <option value="finalizados">Finalizados</option>
+              <option value="todos">Todos os jogos</option>
+            </select>
+            <button id="com-atualizar" class="btn-mini" title="Atualizar jogos">↻ Atualizar</button>
+          </div>
+          <div id="com-jogos"><div class="vazio">Carregando jogos…</div></div>
+        </div>
+
+        <!-- RANKING -->
+        <div id="com-pane-ranking" class="com-pane hidden">
+          <nav class="com-faixas">
+            <button class="com-faixa ativa" data-faixa="geral">Geral</button>
+            <button class="com-faixa" data-faixa="top1000">🔭 Top 1000</button>
+            <button class="com-faixa" data-faixa="top100">🛡️ Top 100</button>
+            <button class="com-faixa" data-faixa="top50">🥈 Top 50</button>
+            <button class="com-faixa" data-faixa="top10">🏆 Top 10</button>
+            <button class="com-faixa" data-faixa="top3">👑 Top 3</button>
+          </nav>
+          <div id="com-podio" class="com-podio"></div>
+          <div id="com-ranking-tabela"></div>
+        </div>
+
+        <!-- MEU DESEMPENHO -->
+        <div id="com-pane-desempenho" class="com-pane hidden">
+          <div id="com-desempenho"><div class="vazio">Carregando…</div></div>
+        </div>
+
+        <!-- ADMIN -->
+        <div id="com-pane-admin" class="com-pane hidden">
+          <div class="com-admin-box">
+            <div class="com-admin-acoes">
+              <button id="com-admin-reprocessar" class="btn-mini">🔄 Reprocessar jogos</button>
+              <button id="com-admin-exp-ranking" class="btn-mini">⬇️ Ranking (CSV)</button>
+              <button id="com-admin-exp-palpites" class="btn-mini">⬇️ Palpites (CSV)</button>
+            </div>
+            <div class="com-admin-form">
+              <h4>📝 Registrar resultado / marcar jogo</h4>
+              <p class="aviso-pequeno">Cole a <b>chave</b> do jogo (aparece em "Palpites recebidos" abaixo) e
+                informe o placar final, ou marque como adiado/cancelado. Normalmente o sistema já pega o
+                resultado oficial sozinho — use isto só em casos especiais.</p>
+              <input id="com-adm-chave" placeholder="chave do jogo (ex.: id-12345)" />
+              <div class="com-adm-placar">
+                <input id="com-adm-h" type="number" min="0" max="20" placeholder="casa" />
+                <span class="com-x">x</span>
+                <input id="com-adm-a" type="number" min="0" max="20" placeholder="fora" />
+                <button id="com-adm-resultado" class="btn-primario">Registrar placar</button>
+              </div>
+              <div class="com-adm-marcar">
+                <button id="com-adm-adiar" class="btn-mini">⏸️ Marcar adiado</button>
+                <button id="com-adm-cancelar" class="btn-mini perigo">✖️ Marcar cancelado</button>
+              </div>
+            </div>
+            <div class="com-admin-form">
+              <h4>⚖️ Ajustar XP / bloquear usuário</h4>
+              <input id="com-adm-usuario" placeholder="e-mail do usuário" />
+              <div class="com-adm-placar">
+                <input id="com-adm-xp" type="number" placeholder="XP (+/-)" />
+                <input id="com-adm-motivo" placeholder="motivo do ajuste" />
+                <button id="com-adm-ajustar" class="btn-primario">Aplicar XP</button>
+              </div>
+              <div class="com-adm-marcar">
+                <button id="com-adm-bloquear" class="btn-mini perigo">🚫 Bloquear</button>
+                <button id="com-adm-desbloquear" class="btn-mini">✅ Desbloquear</button>
+              </div>
+            </div>
+            <h4>👥 Participantes</h4>
+            <div id="com-admin-usuarios" class="com-admin-lista"></div>
+            <h4>🗒️ Palpites recebidos</h4>
+            <input id="com-admin-busca-palpite" placeholder="🔎 filtrar por usuário ou jogo" />
+            <div id="com-admin-palpites" class="com-admin-lista"></div>
+          </div>
+        </div>
+
+        <div class="com-aviso-resp">
+          <p>⚠️ Os palpites da comunidade são apenas recreativos e <b>não representam garantia de resultado</b>.</p>
+          <p>Este módulo é gratuito, recreativo e <b>não envolve dinheiro, apostas, prêmios financeiros ou
+            promessas de acerto</b>.</p>
+        </div>
+      </main>
+    </section>
+
+    <!-- ---------- SEÇÃO: CHAT AO VIVO ---------- -->
+    <section id="secao-chat" class="hidden">
+      <main>
+        <!-- Painel do administrador (liberar VIP / moderar) — só admin -->
+        <div id="chat-admin" class="chat-admin hidden">
+          <div class="chat-admin-cab">
+            <span>👑 Administração do chat — libere o <b>VIP</b> e modere os membros</span>
+            <button id="btn-admin-recarregar" class="btn-mini" title="Recarregar lista">↻ Atualizar</button>
+            <button id="btn-chat-limpar" class="btn-mini" title="Apagar todo o histórico do chat">🗑️ Limpar chat</button>
+          </div>
+          <div id="chat-admin-lista" class="chat-admin-lista"></div>
+        </div>
+
+        <!-- Bloqueado (cliente que ainda não é VIP) -->
+        <div id="chat-bloqueado" class="chat-bloqueado hidden">
+          <div class="cb-icone">🔒</div>
+          <h3>Chat exclusivo para membros VIP</h3>
+          <p>O <b>Chat ao vivo</b> é um espaço só para membros <b>VIP</b> trocarem ideia sobre os jogos,
+            escalações e novidades em tempo real.</p>
+          <p>Sua conta ainda <b>não é VIP</b>. Fale com o suporte para liberar o acesso. ⭐</p>
+        </div>
+
+        <!-- Área do chat -->
+        <div id="chat-area" class="chat-area hidden">
+          <div class="chat-regras">💬 <b>Regras do chat:</b> fale só sobre <b>jogos, escalações e novidades</b>.
+            Respeito sempre. Mensagens ofensivas podem ser denunciadas 🚩 — após
+            <b>3 denúncias</b> a mensagem some, e quem repete leva <b>suspensão automática</b>.</div>
+          <div id="chat-mensagens" class="chat-mensagens">
+            <div class="vazio">Carregando o chat…</div>
+          </div>
+          <div id="chat-suspenso" class="chat-suspenso hidden">🚫 Sua conta está <b>suspensa</b> no chat por denúncias.
+            Você pode ler, mas não enviar mensagens.</div>
+          <form id="chat-form" class="chat-form">
+            <input id="chat-input" type="text" maxlength="500" autocomplete="off"
+              placeholder="Escreva sobre os jogos…" />
+            <button type="submit" class="btn-primario">Enviar</button>
+          </form>
+        </div>
+      </main>
+    </section>
+
+    <footer class="rodape-app">
+      <b>🔭 ScopeMind AI</b> — 100 agentes de IA especialistas analisando cada jogo para entregar
+      a análise mais completa e fundamentada do mercado.
+      <span class="rodape-aviso">⚠️ Análise probabilística e educativa — nunca uma garantia de resultado.</span>
+    </footer>
+  </div>
+
+  <!-- ====================== JANELA: DETALHES DO JOGO (grátis) ====================== -->
+  <div id="modal-detalhes" class="modal hidden">
+    <div class="modal-conteudo">
+      <button class="fechar" data-fechar="modal-detalhes">✕</button>
+      <h2 id="det-titulo">Detalhes do jogo</h2>
+      <div id="det-info" class="det-info"></div>
+      <div id="det-tem-salvo" class="aviso-salvo hidden">📄 Este jogo já tem uma análise salva.</div>
+      <div id="det-encerrado" class="aviso-encerrado hidden">✅ Jogo encerrado — análise com IA indisponível (economia: não faz sentido analisar um jogo que já acabou).</div>
+      <div class="det-acoes">
+        <button id="btn-ver-salvo" class="btn-secundario hidden">📄 Ver análise salva (grátis)</button>
+        <button id="btn-analisar-ia" class="btn-primario">🧠 Analisar com IA</button>
+      </div>
+      <p id="det-custo-aviso" class="aviso-pequeno">⚠️ Só a <b>análise com IA</b> gasta alguns centavos (usa os 10 agentes).
+        Ver a agenda e as análises salvas é de graça.</p>
+    </div>
+  </div>
+
+  <!-- ====================== JANELA: PREPARANDO ANÁLISE (cliente) ====================== -->
+  <div id="modal-preparando" class="prep hidden">
+    <div class="prep-bg"></div>
+    <div class="prep-veu"></div>
+    <div class="prep-conteudo">
+      <div class="prep-anel">
+        <div class="prep-anel-girando"></div>
+        <div class="prep-num" id="prep-num">30</div>
+      </div>
+      <div class="prep-titulo">🧠 <b>100 agentes de IA</b> analisando a partida</div>
+      <div class="prep-jogo" id="prep-jogo"></div>
+      <div class="prep-fase" id="prep-fase">Cruzando estatísticas e escalações…</div>
+      <div class="prep-barra"><div class="prep-barra-fill" id="prep-barra-fill"></div></div>
+      <div class="prep-aviso">⏳ Aguarde — sua análise profissional está sendo gerada. Não feche esta janela.</div>
+    </div>
+  </div>
+
+  <!-- ====================== JANELA: RELATÓRIO ====================== -->
+  <div id="modal-relatorio" class="modal hidden">
+    <div class="modal-conteudo grande">
+      <button class="fechar" data-fechar="modal-relatorio">✕</button>
+      <h2 id="rel-titulo">Análise da partida</h2>
+      <div id="rel-meta" class="meta"></div>
+      <div id="rel-carregando" class="carregando hidden">
+        <div class="spinner"></div>
+        <p id="carregando-texto">Os agentes especialistas estão debatendo a partida…</p>
+      </div>
+      <div id="rel-conteudo" class="relatorio hidden">
+        <div id="rel-desatualizado" class="aviso-desatualizado hidden">⚠️ Esta análise pode estar
+          desatualizada (o jogo ainda vai acontecer e a análise já tem um tempo). Vale refazer.</div>
+        <div id="rel-badge-conf"></div>
+        <div id="rel-corpo"></div>
+        <p class="disclaimer">⚠️ Análise probabilística baseada em dados e contexto. O futebol é
+          imprevisível — nenhuma análise elimina o risco.</p>
+        <div class="rel-acoes">
+          <button id="btn-refazer-rel" class="btn-secundario hidden">🔄 Refazer análise (gasta créditos)</button>
+          <button id="btn-excluir-rel" class="btn-excluir hidden">🗑️ Excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== JANELA: CONFIGURAÇÕES ====================== -->
+  <div id="modal-config" class="modal hidden">
+    <div class="modal-conteudo">
+      <button class="fechar" data-fechar="modal-config">✕</button>
+      <h2>⚙️ Configurações</h2>
+      <p class="aviso-pequeno">As chaves ficam salvas só no seu computador (config.json).</p>
+
+      <label>Chave da IA — Anthropic (Claude) <span class="obrig">*obrigatória p/ análise</span></label>
+      <input id="cfg-anthropic" type="password" placeholder="sk-ant-... (deixe em branco p/ manter a atual)" />
+      <a class="link" href="https://console.anthropic.com/settings/keys" target="_blank">Como obter a chave da IA ↗</a>
+
+      <label>Chave de dados de futebol — API-Football <span class="opc">(opcional, p/ jogos ao vivo)</span></label>
+      <input id="cfg-football" type="password" placeholder="cole a chave aqui" />
+      <a class="link" href="https://dashboard.api-football.com/register" target="_blank">Como obter a chave de jogos (grátis) ↗</a>
+
+      <label>Modelo da IA</label>
+      <select id="cfg-modelo">
+        <option value="claude-opus-4-8">Opus 4.8 — máximo "doutor" (mais caro)</option>
+        <option value="claude-sonnet-4-6">Sonnet 4.6 — ótimo e mais barato</option>
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5 — mais rápido/barato</option>
+      </select>
+
+      <label class="check-linha">
+        <input id="cfg-auto" type="checkbox" />
+        <span>Reanalisar jogos salvos automaticamente a cada 6h <b>(GASTA créditos)</b></span>
+      </label>
+      <p class="aviso-pequeno">A agenda e os dados atualizam de graça sozinhos. Esta opção liga a
+        <b>reanálise por IA</b> automática (apenas dos jogos salvos que vão acontecer em até 2 dias).</p>
+
+      <button id="btn-salvar-config" class="btn-primario">Salvar</button>
+      <p id="config-ok" class="ok"></p>
+      <p id="cfg-ultima" class="aviso-pequeno"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

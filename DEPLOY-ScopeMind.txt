@@ -1,0 +1,62 @@
+==================================================================
+   GUIA DE HOSPEDAGEM — ScopeMind AI (na Render)
+==================================================================
+Objetivo: colocar o ScopeMind AI no ar, PRIVADO (só você), sempre ligado.
+
+VOCÊ VAI PRECISAR (uns 10–15 min):
+  - Conta no GitHub (grátis) ......... github.com
+  - Conta na Render (grátis p/ criar; o plano "sempre ligado"
+    custa ~US$7/mês) .................. render.com
+  - Suas 2 chaves (IA Anthropic e API-Football) — já estão no app.
+
+------------------------------------------------------------------
+PASSO 1 — Colocar o código no GitHub
+------------------------------------------------------------------
+Me peça aqui no Claude: "me ajude a subir o ScopeMind pro GitHub".
+Eu preparo tudo e te guio.
+IMPORTANTE: o arquivo config.json (com suas chaves) NÃO vai pro
+GitHub — ele fica só no seu PC (já está protegido pelo .gitignore).
+
+------------------------------------------------------------------
+PASSO 2 — Criar o serviço na Render
+------------------------------------------------------------------
+1. Entre em render.com e crie a conta / faça login.
+2. Clique em "New +" -> "Web Service" (ou "Blueprint", se ele
+   detectar o arquivo render.yaml automaticamente).
+3. Conecte sua conta do GitHub e escolha o repositório do ScopeMind.
+4. Se pedir as configurações, use:
+       Language/Runtime ... Python 3
+       Build Command ...... pip install -r requirements.txt
+       Start Command ...... python server.py
+       Instance Type ...... Starter  (~US$7/mês, sempre ligado)
+
+------------------------------------------------------------------
+PASSO 3 — Variáveis secretas (Environment)
+------------------------------------------------------------------
+Na aba "Environment", adicione estas variáveis:
+
+   ANTHROPIC_API_KEY = sua chave da Anthropic (começa com sk-ant-)
+   FOOTBALL_API_KEY  = sua chave da API-Football
+   ADMIN_USER        = admin
+   ADMIN_PASSWORD    = UMA SENHA FORTE SUA  (será a senha do login!)
+   MAX_ANALISES_DIA  = 30   (teto de análises por dia — protege custo)
+
+   (A APP_SECRET é gerada automaticamente pela Render.)
+
+------------------------------------------------------------------
+PASSO 4 — Publicar
+------------------------------------------------------------------
+Clique em "Create Web Service" / "Deploy" e aguarde uns minutos.
+No fim, a Render te dá um link parecido com:
+       https://scopemind-ai.onrender.com
+Abra esse link, faça login com seu usuário e a SENHA FORTE. Pronto! 🎉
+
+------------------------------------------------------------------
+DICAS
+------------------------------------------------------------------
+- Trocar a senha depois: altere a variável ADMIN_PASSWORD na Render
+  e clique em "Manual Deploy".
+- Suas chaves ficam SÓ nas variáveis secretas da Render — nunca no código.
+- Custo: hospedagem ~US$7/mês + uso das APIs (a IA cobra por análise;
+  o teto diário MAX_ANALISES_DIA protege você de gastos inesperados).
+- Qualquer passo que travar: tira um print e me manda que eu te ajudo.
