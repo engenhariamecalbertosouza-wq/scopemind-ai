@@ -1490,19 +1490,12 @@ function renderPagStatus(d) {
 }
 
 async function gerarPix() {
-  const msg = $("#pag-msg"); msg.className = "pag-msg"; msg.textContent = "Gerando seu Pix…";
+  const msg = $("#pag-msg"); msg.className = "pag-msg"; msg.textContent = "Abrindo o Pix no Mercado Pago…";
   $("#btn-pix").disabled = true;
   try {
     const r = await api("/api/mp/pix", { method: "POST", body: JSON.stringify({}) });
-    PAG_ID = r.id;
-    const img = $("#pag-qr");
-    if (r.qr_code_base64) { img.src = "data:image/png;base64," + r.qr_code_base64; img.style.display = "block"; }
-    else img.style.display = "none";
-    $("#pag-pix-codigo").value = r.pix_copia_cola || "";
-    $("#pag-pix-area").classList.remove("hidden");
-    msg.textContent = "";
-    $("#pag-pix-area").scrollIntoView({ behavior: "smooth", block: "center" });
-    iniciarPollPix();
+    if (r.checkout_url) { window.location.href = r.checkout_url; }
+    else { msg.className = "pag-msg erro"; msg.textContent = "Não consegui abrir o Pix. Tente o cartão."; }
   } catch (e) { msg.className = "pag-msg erro"; msg.textContent = "⚠️ " + e.message; }
   $("#btn-pix").disabled = false;
 }

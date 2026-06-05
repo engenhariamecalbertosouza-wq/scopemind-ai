@@ -1110,10 +1110,7 @@ class Handler(BaseHTTPRequestHandler):
             reg = pagamentos.criar_pix(usuario, email, nome)
         except Exception as e:
             self._json({"erro": str(e)}, 502); return
-        self._json({"ok": True, "id": reg["id"], "status": reg["status"],
-                    "qr_code_base64": reg.get("qr_code_base64", ""),
-                    "pix_copia_cola": reg.get("pix_copy_paste", ""),
-                    "ticket_url": reg.get("ticket_url", ""), "valor": reg["amount"]})
+        self._json({"ok": True, "id": reg["id"], "checkout_url": reg.get("checkout_url", "")})
 
     def _mp_cartao(self):
         usuario, email, nome, u, cfg = self._mp_cliente()

@@ -149,56 +149,21 @@ def _registrar(reg):
     return reg
 
 
-def criar_pix(usuario_key, email, nome):
-    """Cria um pagamento Pix no MP e devolve QR + copia-e-cola para a nossa tela."""
-    p = plano()
-    nosso_id = _novo_id()
-    expira = datetime.datetime.now(FUSO_BR) + datetime.timedelta(minutes=30)
-    body = {
-        "transaction_amount": p["preco"],
-        "description": "Plano VIP ScopeMind AI",
-        "payment_method_id": "pix",
-        "external_reference": usuario_key,
-        "notification_url": _app_url() + "/api/mp/webhook",
-        "date_of_expiration": expira.isoformat(timespec="milliseconds"),
-        "payer": {"email": email or "sem-email@scopemind-ai.com.br",
-                  "first_name": (nome or "Cliente")[:40]},
-        "metadata": {"nosso_id": nosso_id, "usuario": usuario_key},
-    }
-    resp = _mp("POST", "/v1/payments", body)
-    tdata = (resp.get("point_of_interaction") or {}).get("transaction_data") or {}
-    reg = {
-        "id": nosso_id,
-        "usuario": usuario_key,
-        "provider": "mercadopago",
-        "provider_payment_id": str(resp.get("id") or ""),
-        "amount": p["preco"],
-        "status": resp.get("status") or "pending",   # pending | approved | rejected | cancelled
-        "payment_method": "pix",
-        "qr_code": tdata.get("qr_code", ""),          # copia-e-cola
-        "qr_code_base64": tdata.get("qr_code_base64", ""),  # imagem PNG base64
-        "pix_copy_paste": tdata.get("qr_code", ""),
-        "ticket_url": tdata.get("ticket_url", ""),
-        "checkout_url": "",
-        "vip_liberado": False,
-        "paid_at": "",
-        "created_at": _agora(),
-        "updated_at": _agora(),
-    }
-    return _registrar(reg)
-
-
-def criar_cartao(usuario_key, email, nome):
-    """Cria uma preference (Checkout Pro) e devolve a URL segura do MP (cartao)."""
+def _criar_checkout(usuario_key, email, nome, foco):
+    """Cria uma preference (Checkout Pro) e devolve o registro com checkout_url.
+    foco='pix' mostra so Pix; foco='cartao' mostra so cartao. (Funciona em teste e
+    em producao sem precisar de homologacao do Pagamentos API.)"""
     p = plano()
     nosso_id = _novo_id()
     base = _app_url()
+    if foco == "pix":
+        excluded = [{"id": "credit_card"}, {"id": "debit_card"}, {"id": "ticket"}, {"id": "atm"}]
+    else:
+        excluded = [{"id": "ticket"}, {"id": "bank_transfer"}, {"id": "atm"}]
     body = {
         "items": [{
             "title": "Plano VIP ScopeMind AI",
-            "quantity": 1,
-            "unit_price": p["preco"],
-            "currency_id": "BRL",
+            "quantity": 1, "unit_price": p["preco"], "currency_id": "BRL",
         }],
         "payer": {"email": email or "", "name": (nome or "")[:40]},
         "external_reference": usuario_key,
@@ -210,28 +175,27 @@ def criar_cartao(usuario_key, email, nome):
             "failure": base + "/?vip=falhou",
         },
         "auto_return": "approved",
-        # Foco em cartao (o Pix ja temos na nossa tela):
-        "payment_methods": {"excluded_payment_types": [{"id": "ticket"}]},
+        "payment_methods": {"excluded_payment_types": excluded},
     }
     resp = _mp("POST", "/checkout/preferences", body)
-    url = resp.get("sandbox_init_point") if _sandbox() else resp.get("init_point")
+    url = resp.get("init_point") or resp.get("sandbox_init_point")
     reg = {
-        "id": nosso_id,
-        "usuario": usuario_key,
-        "provider": "mercadopago",
-        "provider_payment_id": "",                 # so saberemos no webhook/retorno
-        "preference_id": str(resp.get("id") or ""),
-        "amount": p["preco"],
-        "status": "pending",
-        "payment_method": "cartao",
+        "id": nosso_id, "usuario": usuario_key, "provider": "mercadopago",
+        "provider_payment_id": "", "preference_id": str(resp.get("id") or ""),
+        "amount": p["preco"], "status": "pending", "payment_method": foco,
         "qr_code": "", "qr_code_base64": "", "pix_copy_paste": "", "ticket_url": "",
-        "checkout_url": url or resp.get("init_point") or "",
-        "vip_liberado": False,
-        "paid_at": "",
-        "created_at": _agora(),
-        "updated_at": _agora(),
+        "checkout_url": url or "", "vip_liberado": False, "paid_at": "",
+        "created_at": _agora(), "updated_at": _agora(),
     }
     return _registrar(reg)
+
+
+def criar_pix(usuario_key, email, nome):
+    return _criar_checkout(usuario_key, email, nome, "pix")
+
+
+def criar_cartao(usuario_key, email, nome):
+    return _criar_checkout(usuario_key, email, nome, "cartao")
 
 
 # ---------------------------------------------------------------------------
