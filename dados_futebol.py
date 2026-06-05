@@ -328,7 +328,7 @@ def _intervalo_datas(periodo):
 # ---------------------------------------------------------------------------
 # Filtro de DESTAQUE: so os campeonatos mais importantes (tela limpa)
 # ---------------------------------------------------------------------------
-MAX_JOGOS_DIA = 50  # teto de jogos por dia (mostra os mais importantes)
+MAX_JOGOS_DIA = 100  # teto de jogos por dia (mostra os mais importantes). Aumentar NAO gasta cota.
 
 # Paises cujas divisoes/copas NACIONAIS sao destaque
 PAISES_DESTAQUE = {"brazil", "brasil", "england", "spain", "france", "germany",
