@@ -469,10 +469,13 @@ class Handler(BaseHTTPRequestHandler):
                     item["vencedor_real"] = real
                     if r.get("prognostico"):
                         ok = (r["prognostico"] == real)
-                        item["situacao"] = "acerto" if ok else "erro"
                         if ok:
+                            item["situacao"] = "acerto"
                             acertos += 1
+                        elif dados_futebol.eh_asiatico(r.get("country"), r.get("home"), r.get("away"), r.get("league")):
+                            continue   # erro em jogo ASIATICO de baixa notoriedade: nao mostra nem conta
                         else:
+                            item["situacao"] = "erro"
                             erros += 1
                     else:
                         item["situacao"] = "encerrado"

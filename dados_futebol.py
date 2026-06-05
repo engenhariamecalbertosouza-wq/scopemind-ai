@@ -9,6 +9,7 @@ import os
 import re
 import json
 import datetime
+import unicodedata
 import urllib.request
 import urllib.error
 
@@ -24,6 +25,44 @@ def _hoje_brasil():
     noite no Brasil ja e 'amanha' em UTC -> sem isso a aba Hoje mostra os jogos
     do dia seguinte. Usar SEMPRE isto em vez de datetime.date.today()."""
     return datetime.datetime.now(FUSO_BR).date()
+
+
+def _norm_txt(s):
+    """minusculas, sem acento, hifens viram espaco — para comparar paises/times."""
+    t = unicodedata.normalize("NFD", str(s or ""))
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    return " ".join(t.lower().replace("-", " ").split())
+
+# Paises/selecoes da ASIA (foco geografico, ligas/selecoes de baixa notoriedade).
+# Inclui formas em ingles e portugues. NAO inclui Australia (Oceania), nem Russia/
+# Israel/Turquia/Caucaso (jogam na Europa).
+PAISES_ASIA = {
+    "japan", "japao", "south korea", "korea republic", "coreia do sul", "korea", "korea dpr",
+    "north korea", "coreia do norte", "china", "china pr", "china rp", "saudi arabia", "arabia saudita",
+    "thailand", "tailandia", "india", "bangladesh", "indonesia", "vietnam", "vietna", "vietname",
+    "qatar", "catar", "united arab emirates", "emirados arabes unidos", "emirados arabes", "uae",
+    "iran", "ira", "irao", "iraq", "iraque", "uzbekistan", "uzbequistao", "malaysia", "malasia",
+    "singapore", "singapura", "hong kong", "mongolia", "kuwait", "oman", "oma", "bahrain", "bahrein",
+    "jordan", "jordania", "lebanon", "libano", "syria", "siria", "tajikistan", "tajiquistao",
+    "kyrgyzstan", "quirguistao", "turkmenistan", "turcomenistao", "nepal", "sri lanka", "pakistan",
+    "paquistao", "afghanistan", "afeganistao", "cambodia", "camboja", "laos", "myanmar", "mianmar",
+    "philippines", "filipinas", "brunei", "bhutan", "butao", "maldives", "maldivas", "yemen", "iemen",
+    "palestine", "palestina", "taiwan", "chinese taipei", "macau", "macao", "timor leste", "east timor",
+    "kazakhstan", "cazaquistao",
+}
+# Grandes competicoes: NUNCA entram na excecao asiatica (sao notorias).
+_LIGAS_NOTORIAS = ("world cup", "copa do mundo", "club world cup", "mundial de clubes",
+                   "nations league", "champions league", "libertadores", "copa america")
+
+def eh_asiatico(country, home, away, league=""):
+    """True se o jogo for da Asia (competicao OU um dos times/selecoes), EXCETO em
+    grandes competicoes notorias. Usado no Placar de Acertos para nao penalizar a
+    IA por erros em jogos asiaticos de baixa importancia."""
+    l = _norm_txt(league)
+    for grande in _LIGAS_NOTORIAS:
+        if grande in l:
+            return False
+    return any(_norm_txt(v) in PAISES_ASIA for v in (country, home, away))
 
 STATUS_PT = {
     "NS": "A iniciar", "TBD": "A confirmar",
