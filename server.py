@@ -452,7 +452,7 @@ class Handler(BaseHTTPRequestHandler):
                     resultados[relatorios.chave_do_jogo(j)] = j
             except Exception:
                 pass
-        itens, acertos, erros = [], 0, 0
+        itens, acertos, erros, placares_exatos = [], 0, 0, 0
         for r in regs:
             jogo = resultados.get(r.get("chave"))
             item = {
@@ -472,6 +472,11 @@ class Handler(BaseHTTPRequestHandler):
                         if ok:
                             item["situacao"] = "acerto"
                             acertos += 1
+                            # PLACAR EXATO: a IA cravou o placar (ex.: previu 1x0 e foi 1x0)?
+                            pred = re.findall(r"\d+", ((r.get("dados") or {}).get("placar_principal") or ""))
+                            if len(pred) >= 2 and int(pred[0]) == h and int(pred[1]) == a:
+                                item["placar_exato"] = True
+                                placares_exatos += 1
                         elif dados_futebol.eh_asiatico(r.get("country"), r.get("home"), r.get("away"), r.get("league")):
                             continue   # erro em jogo ASIATICO de baixa notoriedade: nao mostra nem conta
                         else:
@@ -484,7 +489,8 @@ class Handler(BaseHTTPRequestHandler):
             itens.append(item)
         total = acertos + erros
         pct = round(100 * acertos / total) if total else None
-        self._json({"itens": itens, "acertos": acertos, "erros": erros, "total": total, "pct": pct})
+        self._json({"itens": itens, "acertos": acertos, "erros": erros, "total": total,
+                    "pct": pct, "placares_exatos": placares_exatos})
 
     # ---- POST ----
     def do_POST(self):

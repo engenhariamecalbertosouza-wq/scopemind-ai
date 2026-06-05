@@ -917,6 +917,7 @@ async function carregarPlacar() {
     $("#placar-resumo").innerHTML =
       '<div class="card-resumo"><div class="cr-num">' + (d.pct === null ? "—" : d.pct + "%") + '</div><div class="cr-rot">de acerto</div></div>' +
       '<div class="card-resumo cr-fim"><div class="cr-num">' + d.acertos + '</div><div class="cr-rot">✅ acertos</div></div>' +
+      '<div class="card-resumo cr-exato"><div class="cr-num">' + (d.placares_exatos || 0) + '</div><div class="cr-rot">🎯 placar exato</div></div>' +
       '<div class="card-resumo cr-vivo"><div class="cr-num">' + d.erros + '</div><div class="cr-rot">❌ erros</div></div>' +
       '<div class="card-resumo cr-prox"><div class="cr-num">' + pendentes + '</div><div class="cr-rot">⏳ aguardando</div></div>';
     if (!itens.length) {

@@ -357,6 +357,7 @@ main { padding: 12px 22px 60px; max-width: 1200px; margin: 0 auto; }
 .card-resumo.cr-vivo .cr-num { color: var(--vermelho); }
 .card-resumo.cr-fim .cr-num { color: var(--verde); }
 .card-resumo.cr-prox .cr-num { color: var(--amarelo); }
+.card-resumo.cr-exato .cr-num { color: var(--azul); }
 .aviso-plano { color: var(--amarelo); font-size: 12.5px; }
 
 /* status do jogo no cartao */
