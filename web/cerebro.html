@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Cérebro de Análise ao Vivo — ScopeMind AI</title>
+<style>
+  :root{
+    --bg:#06111F; --panel:#0E1A2B; --border:#1E3250; --primary:#35C2FF;
+    --secondary:#22C55E; --warning:#F59E0B; --danger:#EF4444;
+    --text:#E5F0FF; --muted:#8CA3BF; --glow:rgba(53,194,255,.35);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif; overflow:hidden}
+  #stage{position:fixed; inset:0; overflow:hidden}
+  canvas#scene{position:absolute; inset:0; display:block}
+
+  /* ===== Cabeçalho ===== */
+  #header{position:absolute; top:0; left:0; right:0; padding:14px 22px;
+    display:flex; align-items:flex-start; gap:18px; pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,17,31,.88) 0%, rgba(6,17,31,0) 100%); z-index:6}
+  #header .brand{display:flex; align-items:center; gap:10px; pointer-events:auto}
+  .logo-mark{width:34px;height:34px;border-radius:9px;
+    background:radial-gradient(circle at 30% 30%, #35C2FF, #0a4f7a);
+    box-shadow:0 0 18px var(--glow); position:relative; flex:0 0 auto}
+  .logo-mark::after{content:""; position:absolute; inset:7px; border-radius:50%;
+    border:2px solid rgba(229,240,255,.85); border-top-color:transparent; animation:spin 3.2s linear infinite}
+  .h-titles{min-width:0}
+  .h-kicker{font-size:11px; letter-spacing:3px; color:var(--primary); font-weight:700; text-transform:uppercase}
+  .h-title{font-size:20px; font-weight:800; line-height:1.15; margin-top:1px}
+  .h-sub{font-size:12px; color:var(--muted); margin-top:3px; max-width:560px}
+  .h-right{margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:6px; pointer-events:auto}
+  .chips{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
+  .chip{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700;
+    padding:5px 10px; border-radius:999px; background:var(--panel); border:1px solid var(--border)}
+  .chip .dot{width:7px;height:7px;border-radius:50%; background:var(--secondary); box-shadow:0 0 8px var(--secondary)}
+  .chip.live .dot{background:var(--danger); box-shadow:0 0 10px var(--danger); animation:blink 1.1s infinite}
+  .chip.amber{color:var(--warning)}
+  .h-mon{font-size:13px; color:var(--text); font-weight:700}
+  .h-mon b{color:var(--primary)}
+  .switcher{display:flex; gap:4px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:4px}
+  .switcher button{font:inherit; font-size:11.5px; font-weight:700; color:var(--muted); background:transparent;
+    border:0; padding:6px 12px; border-radius:7px; cursor:pointer; transition:.18s}
+  .switcher button.on{background:linear-gradient(180deg,#13314f,#0c2238); color:var(--text); box-shadow:0 0 0 1px var(--border)}
+
+  /* ===== Painel esquerdo: 10 grupos ===== */
+  #groups{position:absolute; top:96px; left:18px; width:296px; max-height:calc(100% - 130px);
+    background:linear-gradient(180deg, rgba(14,26,43,.92), rgba(9,18,31,.92));
+    border:1px solid var(--border); border-radius:14px; backdrop-filter:blur(6px);
+    display:flex; flex-direction:column; overflow:hidden; z-index:6; box-shadow:0 16px 50px rgba(0,0,0,.45)}
+  #groups .g-head{display:flex; align-items:center; gap:8px; padding:11px 14px; border-bottom:1px solid var(--border)}
+  #groups .g-head h3{margin:0; font-size:12.5px; letter-spacing:1.5px; text-transform:uppercase}
+  #groups .g-head .dot{width:8px;height:8px;border-radius:50%;background:var(--primary);box-shadow:0 0 8px var(--primary);animation:blink 1.3s infinite}
+  #glist{overflow-y:auto; overflow-x:hidden; padding:6px}
+  #glist::-webkit-scrollbar{width:6px} #glist::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px}
+  .g-block{display:block; width:100%; text-align:left; cursor:pointer; margin:4px 0; padding:8px 10px;
+    background:rgba(255,255,255,.02); border:1px solid var(--border); border-left-width:3px; border-radius:10px;
+    transition:.15s; font:inherit; color:var(--text)}
+  .g-block:hover{background:rgba(53,194,255,.08); transform:translateX(2px)}
+  .g-block .g-top{display:flex; align-items:center; gap:7px}
+  .g-block .g-dot{width:8px;height:8px;border-radius:50%; flex:0 0 auto; animation:pulseDot 1.6s infinite}
+  .g-block .g-name{font-size:12.5px; font-weight:700}
+  .g-block .g-meta{margin-left:auto; font-size:10.5px; color:var(--muted); font-weight:700}
+  .g-block canvas{display:block; width:100%; height:24px; margin-top:6px}
+  .g-block .g-more{margin-top:5px; font-size:11px; font-weight:800; text-align:right; color:var(--primary); letter-spacing:.3px}
+
+  /* ===== Feed lateral ===== */
+  #feed{position:absolute; top:96px; right:18px; width:330px; max-height:calc(100% - 130px);
+    background:linear-gradient(180deg, rgba(14,26,43,.92), rgba(9,18,31,.92));
+    border:1px solid var(--border); border-radius:14px; backdrop-filter:blur(6px);
+    display:flex; flex-direction:column; overflow:hidden; z-index:6; box-shadow:0 16px 50px rgba(0,0,0,.45)}
+  #feed .f-head{display:flex; align-items:center; gap:8px; padding:11px 14px; border-bottom:1px solid var(--border)}
+  #feed .f-head .dot{width:8px;height:8px;border-radius:50%;background:var(--secondary);box-shadow:0 0 8px var(--secondary);animation:blink 1.3s infinite}
+  #feed .f-head h3{margin:0; font-size:12.5px; letter-spacing:1.5px; text-transform:uppercase}
+  #feed .f-head .count{margin-left:auto; font-size:11px; color:var(--muted)}
+  #feedlist{padding:8px 12px; overflow:hidden; font-family:"Consolas",ui-monospace,monospace; font-size:11.5px; line-height:1.55}
+  .f-row{display:flex; gap:7px; padding:2px 0; opacity:0; transform:translateY(-4px); animation:fin .35s forwards}
+  .f-row .t{color:var(--muted)}
+  .f-row .a{color:var(--primary); font-weight:700; flex:0 0 auto}
+  .f-row .m{color:var(--text); opacity:.92; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .f-row .imp{margin-left:auto; font-weight:700}
+  .imp.up{color:var(--secondary)} .imp.dn{color:var(--danger)} .imp.nu{color:var(--muted)}
+
+  /* metrics bar */
+  #metrics{position:absolute; left:330px; bottom:16px; right:360px; z-index:6;
+    display:flex; gap:10px; align-items:stretch}
+  .metric{flex:1; background:linear-gradient(180deg, rgba(14,26,43,.9), rgba(9,18,31,.9));
+    border:1px solid var(--border); border-radius:12px; padding:9px 12px; min-width:0}
+  .metric .lbl{font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted)}
+  .metric .val{font-size:18px; font-weight:800; margin-top:2px; white-space:nowrap}
+  .metric .val small{font-size:11px; color:var(--muted); font-weight:600}
+  .metric.cy .val{color:var(--primary)} .metric.gr .val{color:var(--secondary)}
+  .metric.am .val{color:var(--warning)} .metric.rd .val{color:var(--secondary)}
+  .metric-btn{flex:1.3; cursor:pointer; border:0; font:inherit; letter-spacing:1.2px;
+    color:#061018; background:linear-gradient(95deg,#35C2FF,#22C55E); border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; line-height:1.04;
+    box-shadow:0 0 0 1px rgba(53,194,255,.4), 0 8px 26px rgba(34,197,94,.25);
+    transition:transform .15s, filter .15s; animation:ctaPulse 2.6s ease-in-out infinite}
+  .metric-btn b{font-size:14px; font-weight:800}
+  .metric-btn .mid{font-size:10px; font-weight:700; opacity:.78}
+  .metric-btn:hover{filter:brightness(1.08); transform:translateY(-2px)}
+  @keyframes ctaPulse{0%,100%{box-shadow:0 0 0 1px rgba(53,194,255,.4),0 6px 22px rgba(34,197,94,.22)}
+    50%{box-shadow:0 0 0 1px rgba(53,194,255,.75),0 12px 34px rgba(34,197,94,.55)}}
+  #toast{position:absolute; left:50%; bottom:82px; transform:translateX(-50%) translateY(8px); z-index:25;
+    background:rgba(8,18,32,.96); border:1px solid var(--primary); color:var(--text);
+    padding:10px 16px; border-radius:12px; font-size:13px; font-weight:600; opacity:0;
+    pointer-events:none; transition:.2s; box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  #toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  /* tooltip + modais */
+  #tip{position:absolute; z-index:20; pointer-events:none; max-width:250px; padding:10px 12px;
+    background:rgba(8,18,32,.97); border:1px solid var(--primary); border-radius:11px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5); font-size:12px; opacity:0; transform:translateY(4px); transition:opacity .12s, transform .12s}
+  #tip.on{opacity:1; transform:translateY(0)}
+  #tip .tt-name{font-weight:800}
+  #tip .tt-cat{font-size:10.5px; letter-spacing:1px; text-transform:uppercase; margin-top:1px}
+  #tip .tt-row{display:flex; justify-content:space-between; gap:14px; margin-top:5px; color:var(--muted)}
+  #tip .tt-row b{color:var(--text)}
+  #tip canvas{margin-top:7px; width:226px; height:34px; display:block; border-radius:6px; background:rgba(255,255,255,.03)}
+
+  .ovl{position:absolute; inset:0; z-index:30; display:none; align-items:center; justify-content:center;
+    background:rgba(3,9,17,.62); backdrop-filter:blur(3px)}
+  .ovl.on{display:flex; animation:fin .2s}
+  .modal-card{width:min(460px,92vw); background:linear-gradient(180deg,#0E1A2B,#091421);
+    border:1px solid var(--primary); border-radius:18px; padding:22px; box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .modal-card h2{margin:0 0 2px; font-size:19px}
+  .modal-card .mc-cat{font-size:11px; letter-spacing:2px; text-transform:uppercase; font-weight:700}
+  .modal-card .mc-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0}
+  .mc-box{background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:10px; padding:10px 12px}
+  .mc-box .k{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  .mc-box .v{font-size:16px; font-weight:800; margin-top:2px}
+  .modal-card p{color:var(--muted); font-size:13px; line-height:1.55; margin:8px 0 0}
+  .modal-card .mc-conn{font-size:12px; margin-top:10px}
+  .modal-card .mc-conn span{display:inline-block; margin:3px 4px 0 0; padding:3px 9px; border-radius:999px;
+    background:rgba(53,194,255,.12); border:1px solid rgba(53,194,255,.35); font-size:11px}
+  .mc-close{margin-top:18px; width:100%; font:inherit; font-weight:800; cursor:pointer;
+    padding:11px; border-radius:11px; border:0; color:#061018; background:linear-gradient(90deg,#35C2FF,#22C55E)}
+  /* lista de IAs do grupo */
+  #gmCard{width:min(520px,94vw)}
+  #gmList{max-height:54vh; overflow-y:auto; margin:14px 0 4px}
+  .ia-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--border);
+    border-radius:10px; margin:6px 0; background:rgba(255,255,255,.02)}
+  .ia-row .ia-dot{width:9px;height:9px;border-radius:50%; flex:0 0 auto}
+  .ia-row .ia-n{font-size:13px; font-weight:700}
+  .ia-row .ia-s{font-size:11px; color:var(--muted)}
+  .ia-row .ia-c{margin-left:auto; font-size:13px; font-weight:800; color:var(--secondary)}
+
+  #hint{position:absolute; left:50%; bottom:74px; transform:translateX(-50%); z-index:6;
+    font-size:11.5px; color:var(--muted); background:rgba(8,18,32,.6); border:1px solid var(--border);
+    padding:5px 12px; border-radius:999px; pointer-events:none}
+  #lowmo{position:absolute; right:18px; bottom:16px; z-index:7; pointer-events:auto;
+    background:var(--panel); border:1px solid var(--border); color:var(--muted);
+    font:inherit; font-size:11px; font-weight:700; padding:8px 12px; border-radius:10px; cursor:pointer; display:none}
+
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes blink{50%{opacity:.25}}
+  @keyframes pulseDot{50%{box-shadow:0 0 9px currentColor; opacity:.55}}
+  @keyframes fin{from{opacity:0; transform:translateY(-4px)} to{opacity:1; transform:translateY(0)}}
+
+  @media (max-width:1080px){ #groups{display:none} #metrics{left:18px} }
+  @media (max-width:920px){ #feed{display:none} #metrics{right:18px} .h-sub{display:none} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="scene"></canvas>
+
+  <div id="header">
+    <div class="brand">
+      <div class="logo-mark"></div>
+      <div class="h-titles">
+        <div class="h-kicker">ScopeMind AI · Engine</div>
+        <div class="h-title">Cérebro de Análise ao Vivo</div>
+        <div class="h-sub">100 agentes processando sinais ofensivos, defensivos, táticos, estatísticos e contextuais de todas as próximas partidas, em tempo real.</div>
+      </div>
+    </div>
+    <div class="h-right">
+      <div class="h-mon">Monitorando <b id="matchCount">47</b> partidas das próximas rodadas</div>
+      <div class="chips">
+        <span class="chip"><span class="dot"></span>Tempo real</span>
+        <span class="chip live"><span class="dot"></span>Análise em andamento</span>
+        <span class="chip amber"><span class="dot" style="background:#F59E0B;box-shadow:0 0 8px #F59E0B"></span><b id="activeCount">100</b>&nbsp;agentes ativos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Painel esquerdo: 10 grupos -->
+  <div id="groups">
+    <div class="g-head"><span class="dot"></span><h3>10 grupos de agentes</h3></div>
+    <div id="glist"></div>
+  </div>
+
+  <!-- Feed -->
+  <div id="feed">
+    <div class="f-head"><span class="dot"></span><h3>Feed ao vivo</h3><span class="count" id="feedCount">— sinais/s</span></div>
+    <div id="feedlist"></div>
+  </div>
+
+  <div id="metrics">
+    <div class="metric cy"><div class="lbl">Partidas monitoradas</div><div class="val" id="mMatches">47</div></div>
+    <div class="metric am"><div class="lbl">Confiança média</div><div class="val" id="mConf">72<small>/100</small></div></div>
+    <button class="metric-btn" id="enterBtn"><b>ENTRAR</b><span class="mid">NO</span><b>SISTEMA</b></button>
+    <div class="metric cy"><div class="lbl">Agentes ativos</div><div class="val" id="mActive">100</div></div>
+    <div class="metric rd"><div class="lbl">Risco de dar errado</div><div class="val" id="mRisk">BAIXO</div></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="tip">
+    <div class="tt-name" id="ttName"></div>
+    <div class="tt-cat" id="ttCat"></div>
+    <div class="tt-row"><span>Status</span><b id="ttStatus"></b></div>
+    <div class="tt-row"><span>Confiança local</span><b id="ttConf"></b></div>
+    <div class="tt-row"><span>Última ação</span><b id="ttMsg"></b></div>
+    <canvas id="ttChart" width="452" height="68"></canvas>
+  </div>
+
+  <!-- modal de UM agente -->
+  <div id="modal" class="ovl">
+    <div class="modal-card">
+      <div class="mc-cat" id="mdCat"></div>
+      <h2 id="mdName"></h2>
+      <div class="mc-grid">
+        <div class="mc-box"><div class="k">Status</div><div class="v" id="mdStatus"></div></div>
+        <div class="mc-box"><div class="k">Confiança local</div><div class="v" id="mdConf"></div></div>
+        <div class="mc-box"><div class="k">Nível de atividade</div><div class="v" id="mdAct"></div></div>
+        <div class="mc-box"><div class="k">Força do sinal</div><div class="v" id="mdSig"></div></div>
+      </div>
+      <p id="mdRole"></p>
+      <div class="mc-conn"><b>Conectado a:</b> <span id="mdConn"></span></div>
+      <button class="mc-close" id="mdClose">Fechar</button>
+    </div>
+  </div>
+
+  <!-- modal de UM grupo (10 IAs) -->
+  <div id="gmodal" class="ovl">
+    <div class="modal-card" id="gmCard">
+      <div class="mc-cat" id="gmCat"></div>
+      <h2 id="gmName"></h2>
+      <div id="gmList"></div>
+      <button class="mc-close" id="gmClose">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   CÉREBRO DE ANÁLISE AO VIVO — camada visual cenográfica (JavaScript puro).
+   Centro global: recebe sinais de TODAS as próximas partidas ao mesmo tempo.
+   "O usuário deve sentir que entrou dentro do cérebro da plataforma."
+   ========================================================================= */
+var THEME = {
+  bg:"#06111F", panel:"#0E1A2B", border:"#1E3250", primary:"#35C2FF",
+  secondary:"#22C55E", warning:"#F59E0B", danger:"#EF4444",
+  text:"#E5F0FF", muted:"#8CA3BF", glow:"rgba(53,194,255,.35)"
+};
+
+/* 10 grupos × 10 IAs (nomes em PORTUGUÊS) */
+var CATEGORIES = [
+  { key:"statistics", label:"Estatística Base", color:"#35C2FF", names:[
+    "Estatísticas Históricas","Frequência de Gols","Padrão de Posse","Analisador de Finalizações","Leitor de xG",
+    "Métricas Defensivas","Fator Casa/Fora","Lógica de Gols Sofridos","Modelo de Ritmo de Jogo","Modelo de Recuperação de Bola"]},
+  { key:"tactical", label:"Tática", color:"#5EE6C5", names:[
+    "Leitor de Formação","Leitor de Forma Tática","Detector de Pressão","Analisador de Transições","Leitor de Bloco Baixo",
+    "IA de Uso de Amplitude","IA de Construção de Jogo","IA de Ameaça em Bola Parada","IA de Controle de Espaço","IA de Confronto Tático"]},
+  { key:"players", label:"Jogadores", color:"#A78BFA", names:[
+    "Detector de Artilheiro","IA de Ameaça de Finalização","IA de Meia Criativo","IA de Posicionamento de Atacante","IA de Influência da Escalação",
+    "IA de Impacto de Jogador-Chave","IA de Sensibilidade a Lesões","IA de Impacto de Substituições","Monitor de Craque","IA de Combinações Ofensivas"]},
+  { key:"form", label:"Forma Recente", color:"#22C55E", names:[
+    "IA dos Últimos 5 Jogos","IA de Tendência de Momento","IA de Sequência de Vitórias","IA de Tendência de Gols","IA de Forma Defensiva",
+    "IA de Ritmo Ofensivo","IA de Jogos sem Sofrer Gol","IA de Padrão de Empates","IA de Regressão de Forma","Índice de Força Recente"]},
+  { key:"market", label:"Mercado / Odds", color:"#F59E0B", names:[
+    "IA de Sentimento de Mercado","IA de Pressão das Odds","IA de Viés do Público","IA de Risco do Favorito","Detector de Zebra",
+    "Modelo de Mais/Menos Gols","Modelo de Ambas Marcam","IA de Probabilidade de Placar","IA de Tendência do 1º Tempo","IA de Projeção de Escanteios"]},
+  { key:"context", label:"Contexto Externo", color:"#38BDF8", names:[
+    "IA de Impacto do Clima","IA de Desgaste por Viagem","IA de Risco de Amistoso","IA de Índice de Motivação","IA de Contexto do Estádio",
+    "IA de Campo Neutro","IA de Estresse de Calendário","IA de Probabilidade de Rodízio","IA de Sinal Psicológico","IA de Importância do Jogo"]},
+  { key:"scenarios", label:"Simulação de Cenários", color:"#F472B6", names:[
+    "Motor de Cenários 1","Motor de Cenários 2","Motor de Cenários 3","Motor de Cenários 4","Motor de Cenários 5",
+    "Motor de Cenários 6","Motor de Cenários 7","Motor de Cenários 8","Motor de Cenários 9","Motor de Cenários 10"]},
+  { key:"attack", label:"Predição Ofensiva", color:"#FB7185", names:[
+    "IA de Ameaça de Gol","Analisador de Entradas na Área","IA de Qualidade de Finalização","IA de Volume de Finalizações","IA de Fluxo Ofensivo",
+    "IA de Ameaça de Contra-ataque","IA de Perigo de Cruzamentos","IA de Pressão no Último Terço","IA de Calor do Atacante","IA de Janela de Gol"]},
+  { key:"defense", label:"Predição Defensiva", color:"#60A5FA", names:[
+    "IA de Solidez Defensiva","IA de Risco de Erro","IA de Resistência à Pressão","IA de Compactação","IA de Velocidade de Recuperação",
+    "IA de Defesa Aérea","IA de Vulnerabilidade em Transições","IA de Defesa em Bola Parada","IA de Queda no Fim do Jogo","IA de Estresse Defensivo"]},
+  { key:"consensus", label:"Consolidação Final", color:"#FDE047", names:[
+    "IA Construtora de Consenso","IA Resolvedora de Conflitos","IA de Fusão de Sinais","IA Motor de Confiança","IA Preditora de Placar",
+    "Sintetizador de Placar Final","IA Medidora de Risco","IA de Veredito Final","Núcleo Cerebral da Partida","Publicador de Resultados"]}
+];
+
+var STATUSES = [
+  {k:"idle",      label:"Em espera",    color:"#8CA3BF"},
+  {k:"scanning",  label:"Varrendo",     color:"#35C2FF"},
+  {k:"processing",label:"Processando",  color:"#38BDF8"},
+  {k:"comparing", label:"Comparando",   color:"#A78BFA"},
+  {k:"validating",label:"Validando",    color:"#22C55E"},
+  {k:"sending",   label:"Enviando sinal",color:"#F59E0B"},
+  {k:"updating",  label:"Atualizando",  color:"#5EE6C5"},
+  {k:"sync",      label:"Sincronizado", color:"#22C55E"}
+];
+var STATUS_MAP={}; STATUSES.forEach(function(s){ STATUS_MAP[s.k]=s; });
+var MESSAGES=[
+  "analisando padrões ofensivos","cruzando dados históricos","sincronizando matriz de cenários",
+  "recalculando probabilidades","validando sinais defensivos","comparando cenários de placar",
+  "projetando tendências de gols","varrendo ameaça de atacante","atualizando risco do favorito",
+  "lendo pressão das odds","consolidando consenso dos agentes","medindo solidez defensiva",
+  "avaliando forma recente","detectando padrão de pressão","calculando xG esperado",
+  "mapeando posse de bola","estimando escanteios do jogo","verificando impacto de lesões",
+  "simulando substituições","ponderando fator casa/fora","analisando ritmo de jogo",
+  "checando histórico de confrontos","medindo momento ofensivo","avaliando bolas paradas",
+  "calculando ambas marcam","projetando placar provável","revisando tendência do 1º tempo",
+  "detectando risco de zebra","lendo sentimento de mercado","avaliando desgaste por viagem",
+  "medindo motivação das equipes","cruzando estatísticas de finalização","analisando transições defensivas",
+  "verificando compactação do bloco","estimando volume de finalizações","recalculando confiança do modelo",
+  "sincronizando sinais entre grupos","publicando revisão de resultado","comparando força recente",
+  "avaliando contexto do estádio","detectando vulnerabilidade em transições","medindo perigo de cruzamentos",
+  "calculando janela de gol","revisando importância do jogo","ponderando rodízio de elenco",
+  "lendo amplitude do ataque","checando resistência à pressão","avaliando defesa aérea",
+  "monitorando craques em campo","calculando velocidade de recuperação","fundindo sinais dos 100 agentes"];
+
+var _seed=1337;
+function rng(){ _seed=(_seed*1664525+1013904223)%4294967296; return _seed/4294967296; }
+function pick(a){ return a[(rng()*a.length)|0]; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function smooth(e0,e1,x){ var t=clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); }
+/* Sorteia um alvo de confiança 70-85 com PESO: 70-75 comum, 76-80 raro, 81-85 muito raro */
+function rollConfTarget(){
+  var r=rng();
+  if(r<0.80) return 70+rng()*5;     // 70-75  (comum ~80%)
+  if(r<0.96) return 76+rng()*4;     // 76-80  (raro ~16%)
+  return 81+rng()*4;                // 81-85  (muito raro ~4%)
+}
+
+function generateAgents(){
+  var list=[], gi=0;
+  for(var c=0;c<CATEGORIES.length;c++){
+    var cat=CATEGORIES[c];
+    for(var n=0;n<cat.names.length;n++){
+      var trend=[], base=0.45+rng()*0.2;
+      for(var t=0;t<7;t++){ base=clamp(base+(rng()-0.5)*0.22,0.08,0.95); trend.push(base); }
+      list.push({
+        id:"Agente "+String(gi+1).padStart(3,"0"), idx:gi, name:cat.names[n],
+        category:cat.key, catLabel:cat.label, color:cat.color,
+        status: gi<6?"idle":pick(["scanning","processing","comparing","validating","updating"]),
+        activityLevel:30+(rng()*70)|0, confidence:Math.round(rollConfTarget()), confTarget:rollConfTarget(), signalStrength:35+(rng()*60)|0,
+        x:0,y:0,hubX:0,hubY:0,ang:0, pulse:rng()*Math.PI*2,
+        miniTrend:trend, miniDisp:trend.slice(), lastMessage:pick(MESSAGES), cluster:c, connectedTo:[]
+      });
+      gi++;
+    }
+  }
+  for(var i=0;i<list.length;i++){
+    var a=list[i], cs=a.cluster*10;
+    a.connectedTo=[list[cs+((a.idx+1)%10)].id, list[cs+((a.idx+3)%10)].id];
+  }
+  return list;
+}
+
+/* núcleo GLOBAL (não é mais de 1 partida). Híbrido pode receber valores reais
+   via window.CEREBRO_GLOBAL = {matches, confidence, signals} */
+var coreLive = { conf:72, confTarget:73, matches:47,
+  offensive:64, defensive:58, tactical:71, market:60 };
+
+var AGENTS=generateAgents();
+var MODE="demo", LOWMO=false;
+var canvas=document.getElementById("scene"), ctx=canvas.getContext("2d");
+var W=0,H=0,DPR=1, cx=0,cy=0, baseR=0, groupsVisible=true, feedVisible=true;
+var particles=[], startT=null, lastTick=0, hoverAgent=null, openGroup=null, coreIngest=0;
+var SMALL_SPEED=0.78, BIG_SPEED=0.045;   // bola grande MUITO lenta (majestosa, carregada)
+var Gcanv=[]; // canvases dos 10 blocos de grupo
+var Gstate=[]; // estado animado de cada grupo
+
+/* ===== blocos de grupo (DOM) ===== */
+function buildGroups(){
+  var list=document.getElementById("glist"); list.innerHTML=""; Gcanv=[]; Gstate=[];
+  for(var k=0;k<CATEGORIES.length;k++){
+    var cat=CATEGORIES[k];
+    var trend=[]; for(var i=0;i<20;i++) trend.push(0.4+rng()*0.3);
+    Gstate.push({ conf:Math.round(rollConfTarget()), confTarget:rollConfTarget(), phase:rng()*6.28, trend:trend, disp:trend.slice() });
+    var b=document.createElement("button");
+    b.className="g-block"; b.style.borderLeftColor=cat.color; b.setAttribute("data-k",k);
+    b.innerHTML='<div class="g-top"><span class="g-dot" style="background:'+cat.color+';color:'+cat.color+'"></span>'+
+      '<span class="g-name">'+(k+1)+'. '+cat.label+'</span>'+
+      '<span class="g-meta">10 IAs · <b style="color:'+cat.color+'" id="gm'+k+'">'+Gstate[k].conf+'%</b></span></div>'+
+      '<canvas width="540" height="48"></canvas>'+
+      '<div class="g-more">Ver mais ›</div>';
+    list.appendChild(b);
+    Gcanv.push(b.querySelector("canvas"));
+    b.addEventListener("click", (function(kk){ return function(){ openGroupModal(kk); }; })(k));
+  }
+}
+
+/* ===== layout ===== */
+function layout(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=(W*DPR)|0; canvas.height=(H*DPR)|0;
+  canvas.style.width=W+"px"; canvas.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  groupsVisible=W>1080; feedVisible=W>920;
+  var leftEdge=groupsVisible?330:0, rightEdge=feedVisible?(W-348):W;
+  cx=(leftEdge+rightEdge)/2; cy=H*0.55;
+  baseR=Math.min(rightEdge-leftEdge, H);
+  var Rhub=baseR*0.285, d1=baseR*0.095, d2=baseR*0.155;
+  for(var i=0;i<AGENTS.length;i++){
+    var a=AGENTS[i], k=a.cluster, j=a.idx%10, hubAng=(-90+k*36)*Math.PI/180;
+    a.hubX=cx+Rhub*Math.cos(hubAng); a.hubY=cy+Rhub*Math.sin(hubAng);
+    var ring=j%2, col=(j/2)|0, angOff=(col-2)*8*Math.PI/180, dist=Rhub+(ring?d2:d1), la=hubAng+angOff;
+    a.ang=la; a.x=cx+dist*Math.cos(la); a.y=cy+dist*Math.sin(la);
+  }
+  initParticles();
+}
+function initParticles(){
+  particles=[]; var n=LOWMO?34:90;
+  for(var i=0;i<n;i++) particles.push({x:rng()*W,y:rng()*H,vx:(rng()-0.5)*0.18,vy:(rng()-0.5)*0.18,r:0.6+rng()*1.8,a:0.15+rng()*0.4});
+}
+
+/* ===== tick lógico (~1s) ===== */
+function tick(now){
+  // MOVIMENTO CONSTANTE: todos os agentes mexem um pouco a cada tick (% e status
+  // sempre mudando — inclusive dentro do modal de grupo aberto).
+  for(var i=0;i<AGENTS.length;i++){
+    var a=AGENTS[i];
+    if(rng()<0.30) a.confTarget=rollConfTarget();               // confiança local 70-85 com peso
+    a.confidence=clamp(Math.round(lerp(a.confidence,a.confTarget,0.3)+(rng()-0.5)*1.2),70,85);
+    a.activityLevel=clamp(a.activityLevel+((rng()-0.5)*22)|0,15,100);
+    a.signalStrength=clamp(a.signalStrength+((rng()-0.5)*20)|0,20,100);
+    if(rng()<0.45){
+      a.status=pick(["scanning","processing","comparing","validating","sending","updating","sync"]);
+      a.lastMessage=pick(MESSAGES);
+    }
+    a.miniTrend.push(clamp(a.miniTrend[a.miniTrend.length-1]+(rng()-0.5)*0.28,0.08,0.95)); a.miniTrend.shift();
+  }
+  // confiança média 70-85 com peso (70-75 comum, 76-80 raro, 81-85 muito raro)
+  if(rng()<0.5) coreLive.confTarget=rollConfTarget();
+  coreLive.conf=clamp(lerp(coreLive.conf,coreLive.confTarget,0.25)+(rng()-0.5)*0.6,70,85);
+  coreLive.matches=clamp(coreLive.matches+((rng()-0.5)*2)|0,38,58);
+  coreLive.offensive=clamp(coreLive.offensive+(rng()-0.5)*4,40,90);
+  coreLive.defensive=clamp(coreLive.defensive+(rng()-0.5)*4,40,90);
+  coreLive.tactical=clamp(coreLive.tactical+(rng()-0.5)*4,40,90);
+  coreLive.market=clamp(coreLive.market+(rng()-0.5)*4,40,90);
+  // grupos
+  for(var g=0;g<Gstate.length;g++){
+    if(rng()<0.4) Gstate[g].confTarget=rollConfTarget();
+    Gstate[g].conf=clamp(Math.round(lerp(Gstate[g].conf,Gstate[g].confTarget,0.3)+(rng()-0.5)*0.8),70,85);
+    var el=document.getElementById("gm"+g); if(el) el.textContent=Gstate[g].conf+"%";
+  }
+  var active=0; for(var q=0;q<AGENTS.length;q++){ if(AGENTS[q].status!=="idle") active++; }
+  document.getElementById("activeCount").textContent=active;
+  document.getElementById("matchCount").textContent=Math.round(coreLive.matches);
+  document.getElementById("mMatches").textContent=Math.round(coreLive.matches);
+  document.getElementById("mConf").innerHTML=Math.round(coreLive.conf)+"<small>/100</small>";
+  document.getElementById("mActive").textContent=active;
+  document.getElementById("mRisk").textContent="BAIXO";   // sempre baixo
+  if(openGroup!==null) renderGroupRows(openGroup);        // modal aberto: mantém em movimento
+  pushFeed(now);
+}
+
+/* ===== feed (PT) ===== */
+var feedN=0;
+function two(x){ return (x<10?"0":"")+x; }
+function clockStr(now){ var s=Math.floor(now/1000); return two((19+Math.floor(s/3600))%24)+":"+two(Math.floor(s/60)%60)+":"+two(s%60); }
+function pushFeed(now){
+  var perSec=108+((rng()*64)|0);                             // 108..171 sinais/s (vazão do sistema)
+  document.getElementById("feedCount").textContent=perSec+" sinais/s";
+  if(!feedVisible) return;
+  var list=document.getElementById("feedlist");
+  var rows=14+((rng()*8)|0);                                 // 14..21 linhas visíveis/s (rola rápido)
+  for(var r=0;r<rows;r++){
+    var a=AGENTS[(rng()*AGENTS.length)|0];
+    var imp=rng(), cls=imp>0.62?"up":(imp<0.3?"dn":"nu"), sym=cls==="up"?"▲":(cls==="dn"?"▼":"•");
+    var div=document.createElement("div"); div.className="f-row";
+    div.innerHTML='<span class="t">'+clockStr(now)+'</span>'+
+      '<span class="a">'+a.id.replace("Agente ","A")+'</span>'+
+      '<span class="m">'+a.lastMessage+'</span>'+
+      '<span class="imp '+cls+'">'+sym+'</span>';
+    list.insertBefore(div,list.firstChild); feedN++;
+  }
+  while(list.childNodes.length>26) list.removeChild(list.lastChild);
+}
+
+/* ===== velas (mini, na rede) ===== */
+function drawCandles(x,y,w,h,vals,scale){
+  var n=vals.length, cw=w/n;
+  for(var i=0;i<n;i++){
+    var v=vals[i], pv=i>0?vals[i-1]:vals[i], up=v>=pv, col=up?THEME.secondary:THEME.danger;
+    var bx=x+i*cw+cw*0.5, hi=y+h-Math.max(v,pv)*h, lo=y+h-Math.min(v,pv)*h, top=y+h-v*h;
+    ctx.globalAlpha=scale*0.9; ctx.strokeStyle=col; ctx.lineWidth=0.8;
+    ctx.beginPath(); ctx.moveTo(bx,hi-2); ctx.lineTo(bx,lo+2); ctx.stroke();
+    ctx.fillStyle=col; var bw=Math.max(1.4,cw*0.5); ctx.fillRect(bx-bw/2,top-1.5,bw,3);
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ===== velas DEITADAS dos grupos (horizontais, indo e voltando) ===== */
+function drawGroupChart(cv, st, color, now){
+  var x=cv.getContext("2d"), w=cv.width, h=cv.height;
+  x.clearRect(0,0,w,h);
+  var n=st.trend.length, ch=h/n;                  // cada vela ocupa uma FAIXA horizontal
+  // varredura indo e voltando
+  var sweep=(Math.sin(st.phase)*0.5+0.5);
+  for(var i=0;i<n;i++){
+    // valor oscila (indo e voltando) com a fase
+    var target=clamp(0.5+Math.sin(st.phase*0.9+i*0.55)*0.34+(st.trend[i]-0.5)*0.4,0.06,0.97);
+    st.disp[i]=lerp(st.disp[i],target,0.12);
+    var v=st.disp[i], pv=i>0?st.disp[i-1]:v, up=v>=pv;
+    var col=up?THEME.secondary:THEME.danger;
+    var cy0=i*ch+ch*0.5;
+    var len=v*(w-6);                               // comprimento horizontal
+    var pvlen=pv*(w-6);
+    // pavio horizontal
+    x.globalAlpha=0.85; x.strokeStyle=col; x.lineWidth=0.8;
+    x.beginPath(); x.moveTo(Math.min(len,pvlen)-2, cy0); x.lineTo(Math.max(len,pvlen)+2, cy0); x.stroke();
+    // corpo (retângulo deitado)
+    x.fillStyle=col; var bh=Math.max(1.6,ch*0.5);
+    x.fillRect(3, cy0-bh/2, len, bh);
+  }
+  // brilho da varredura (linha vertical indo e voltando)
+  x.globalAlpha=0.5; x.fillStyle=color;
+  x.fillRect(sweep*(w-2), 0, 2, h);
+  x.globalAlpha=1;
+}
+
+/* ===== render ===== */
+function render(now){
+  if(startT===null){ startT=now; lastTick=now; }
+  var elapsed=now-startT, intro=smooth(0,1,elapsed/3200), motion=LOWMO?0.35:1;
+  if(now-lastTick>1000){ lastTick=now; tick(elapsed); }
+
+  ctx.clearRect(0,0,W,H);
+  var bg=ctx.createRadialGradient(cx,cy,10,cx,cy,baseR*0.9);
+  bg.addColorStop(0,"#0b2236"); bg.addColorStop(0.5,"#081726"); bg.addColorStop(1,"#050d18");
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  for(var p=0;p<particles.length;p++){
+    var o=particles[p]; o.x+=o.vx*motion; o.y+=o.vy*motion;
+    if(o.x<-5)o.x=W+5; if(o.x>W+5)o.x=-5; if(o.y<-5)o.y=H+5; if(o.y>H+5)o.y=-5;
+    ctx.globalAlpha=o.a*intro*0.8; ctx.fillStyle=THEME.primary;
+    ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,6.283); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  var t=now*0.001, coreR=baseR*0.118; coreIngest=0;
+  ctx.save(); ctx.globalAlpha=intro;
+  for(var k=0;k<10;k++){
+    var hub=AGENTS[k*10];
+    var grad=ctx.createLinearGradient(hub.hubX,hub.hubY,cx,cy);
+    grad.addColorStop(0,hexA(CATEGORIES[k].color,0.05)); grad.addColorStop(1,hexA(CATEGORIES[k].color,0.40));
+    ctx.strokeStyle=grad; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.moveTo(hub.hubX,hub.hubY); ctx.lineTo(cx,cy); ctx.stroke();
+    // BOLA GRANDE: soma de sinais viajando do hub até a BORDA do núcleo, onde é
+    // ABSORVIDA (não passa por baixo). Ao chegar, dissolve e dispara um "ripple"
+    // de ingestão + um flash no ponto de contato — mostra a informação ENTRANDO.
+    var bcol=CATEGORIES[k].color;
+    var dxh=hub.hubX-cx, dyh=hub.hubY-cy, dl=Math.sqrt(dxh*dxh+dyh*dyh)||1;
+    var Ex=cx+(dxh/dl)*(coreR+3), Ey=cy+(dyh/dl)*(coreR+3);  // ponto de contato na borda
+    var bp=(t*BIG_SPEED + k*0.137)%1;
+    var bx=lerp(hub.hubX,Ex,bp), by=lerp(hub.hubY,Ey,bp);
+    var fade=bp<0.90?1:(1-(bp-0.90)/0.10);                   // só DISSOLVE ao tocar a borda
+    var br=6+0.9*Math.sin(t*4+k);                            // tamanho CONSTANTE (não encolhe)
+    ctx.globalAlpha=intro*Math.max(fade,0.05);
+    var bgrad=ctx.createRadialGradient(bx,by,0,bx,by,br*3.6);
+    bgrad.addColorStop(0,hexA(bcol,0.95)); bgrad.addColorStop(0.45,hexA(bcol,0.5)); bgrad.addColorStop(1,hexA(bcol,0));
+    ctx.fillStyle=bgrad; ctx.beginPath(); ctx.arc(bx,by,br*3.6,0,6.283); ctx.fill();
+    ctx.globalAlpha=intro*fade;
+    ctx.fillStyle=bcol; ctx.beginPath(); ctx.arc(bx,by,br,0,6.283); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.92)"; ctx.beginPath(); ctx.arc(bx,by,br*0.42,0,6.283); ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(bx,by,br+1.5+0.8*Math.sin(t*5+k),0,6.283); ctx.stroke();
+    // EFEITO DE INGESTÃO: logo após a chegada (bp baixo = acabou de entrar) ->
+    // onda saindo do núcleo + flash branco no ponto de contato.
+    if(bp<0.24){
+      var rp=bp/0.24;
+      ctx.globalAlpha=intro*(1-rp)*0.75;
+      ctx.strokeStyle=bcol; ctx.lineWidth=2.4*(1-rp)+0.4;
+      ctx.beginPath(); ctx.arc(cx,cy,coreR*0.25+rp*coreR*1.05,0,6.283); ctx.stroke();
+      var fg=ctx.createRadialGradient(Ex,Ey,0,Ex,Ey,13*(1-rp)+4);
+      fg.addColorStop(0,"rgba(255,255,255,"+(0.85*(1-rp)).toFixed(3)+")"); fg.addColorStop(1,hexA(bcol,0));
+      ctx.globalAlpha=intro; ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(Ex,Ey,13*(1-rp)+4,0,6.283); ctx.fill();
+      coreIngest+=(1-rp);
+    }
+    ctx.globalAlpha=intro;
+  }
+  ctx.restore();
+
+  for(var i=0;i<AGENTS.length;i++){
+    var a=AGENTS[i];
+    var appear=smooth(0,1,(intro*1.5)-(i/AGENTS.length)*0.9); if(appear<=0.02) continue;
+    var st=STATUS_MAP[a.status]||STATUS_MAP.idle;
+    a.pulse+=0.03*motion; var pulse=0.5+0.5*Math.sin(a.pulse+i), act=a.activityLevel/100;
+    ctx.globalAlpha=appear*0.5; ctx.strokeStyle=hexA(a.color,0.22+act*0.3); ctx.lineWidth=0.9;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(a.hubX,a.hubY); ctx.stroke();
+    // bolinhas: cada agente envia um fluxo de informação até o hub (a "bola grande")
+    var fp=(t*SMALL_SPEED+i*0.37)%1; ctx.globalAlpha=appear*0.7*Math.sin(fp*Math.PI); ctx.fillStyle=a.color;
+    ctx.beginPath(); ctx.arc(lerp(a.x,a.hubX,fp),lerp(a.y,a.hubY,fp),1.7,0,6.283); ctx.fill();
+    var nodeR=3.2+act*2.6+pulse*1.4; ctx.globalAlpha=appear;
+    var gl=ctx.createRadialGradient(a.x,a.y,0,a.x,a.y,nodeR*4);
+    gl.addColorStop(0,hexA(st.color,0.55*act+0.2)); gl.addColorStop(1,hexA(st.color,0));
+    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(a.x,a.y,nodeR*4,0,6.283); ctx.fill();
+    ctx.fillStyle=a.color; ctx.beginPath(); ctx.arc(a.x,a.y,nodeR,0,6.283); ctx.fill();
+    ctx.strokeStyle=st.color; ctx.lineWidth=1.3; ctx.globalAlpha=appear*(0.6+0.4*pulse);
+    ctx.beginPath(); ctx.arc(a.x,a.y,nodeR+2.4,0,6.283); ctx.stroke();
+    if(hoverAgent===a){ ctx.strokeStyle=THEME.text; ctx.globalAlpha=appear; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(a.x,a.y,nodeR+6,0,6.283); ctx.stroke(); }
+    // (mantém o mini-histórico só para o gráfico do tooltip ao passar o mouse)
+    for(var m=0;m<a.miniTrend.length;m++) a.miniDisp[m]=lerp(a.miniDisp[m],a.miniTrend[m],0.08*motion+0.02);
+    if(appear>0.6){
+      ctx.globalAlpha=appear*0.7; ctx.fillStyle=THEME.muted; ctx.font="8px Consolas,monospace";
+      ctx.textAlign="center"; ctx.fillText(a.id.replace("Agente ",""),a.x,a.y+nodeR+12);
+    }
+  }
+  ctx.globalAlpha=1;
+
+  for(var k2=0;k2<10;k2++){
+    var hb=AGENTS[k2*10], col=CATEGORIES[k2].color;
+    // CARGA: mesma fase da bola grande (1 por linha). O hub cresce conforme recebe
+    // as bolinhas e "estoura" no fim (solta a bola grande), voltando a ficar pequeno.
+    var charge=(t*BIG_SPEED+k2*0.137)%1;
+    var cz=Math.pow(charge,1.5);                    // enche devagar e acelera no fim
+    var hubR=3 + cz*3.6;                             // 3 -> ~6.6 (tamanho da bola grande)
+    var haloR=12 + cz*18;
+    ctx.globalAlpha=intro;
+    var hg=ctx.createRadialGradient(hb.hubX,hb.hubY,0,hb.hubX,hb.hubY,haloR);
+    hg.addColorStop(0,hexA(col,0.42+0.4*cz)); hg.addColorStop(1,hexA(col,0));
+    ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(hb.hubX,hb.hubY,haloR,0,6.283); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(hb.hubX,hb.hubY,hubR,0,6.283); ctx.fill();
+    // miolo branco quando está quase cheio (prestes a estourar)
+    if(cz>0.55){ ctx.globalAlpha=intro*((cz-0.55)/0.45); ctx.fillStyle="rgba(255,255,255,.9)";
+      ctx.beginPath(); ctx.arc(hb.hubX,hb.hubY,hubR*0.42,0,6.283); ctx.fill(); }
+    ctx.globalAlpha=intro;
+  }
+
+  drawCore(now,intro,t,motion);
+
+  // velas deitadas dos grupos (canvases DOM)
+  for(var g=0; g<Gcanv.length; g++){
+    Gstate[g].phase += (0.02+g*0.001)*motion + 0.006;
+    drawGroupChart(Gcanv[g], Gstate[g], CATEGORIES[g].color, now);
+  }
+
+  positionTip();
+  requestAnimationFrame(render);
+}
+
+function drawCore(now,intro,t,motion){
+  var coreScale=smooth(0,1,(now-startT)/1400), R=baseR*0.118*(0.7+0.3*coreScale);
+  var pulse=0.5+0.5*Math.sin(t*1.8)+Math.min(coreIngest*0.22,0.7);   // brilha mais ao ingerir bolas
+  ctx.save(); ctx.globalAlpha=coreScale;
+  var halo=ctx.createRadialGradient(cx,cy,R*0.2,cx,cy,R*3.4);
+  halo.addColorStop(0,hexA(THEME.primary,0.30+0.08*pulse)); halo.addColorStop(0.5,hexA(THEME.primary,0.06)); halo.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=halo; ctx.beginPath(); ctx.arc(cx,cy,R*3.4,0,6.283); ctx.fill();
+  for(var r=0;r<3;r++){
+    var rr=R*(1.5+r*0.5); ctx.globalAlpha=coreScale*(0.5-r*0.12);
+    ctx.strokeStyle=hexA(THEME.primary,0.5); ctx.lineWidth=1; ctx.setLineDash([4,8]);
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*(0.25+r*0.18)*(r%2?-1:1)*motion);
+    ctx.beginPath(); ctx.arc(0,0,rr,0,6.283); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle=THEME.primary; ctx.globalAlpha=coreScale*0.9;
+    ctx.beginPath(); ctx.arc(rr,0,2.6,0,6.283); ctx.fill(); ctx.restore();
+  }
+  ctx.setLineDash([]);
+  // anel de confiança (sempre alto)
+  var conf=coreLive.conf;
+  ctx.lineWidth=5; ctx.lineCap="round"; ctx.strokeStyle=hexA(THEME.border,0.9);
+  ctx.beginPath(); ctx.arc(cx,cy,R+12,-Math.PI/2,-Math.PI/2+6.283); ctx.stroke();
+  ctx.strokeStyle=THEME.secondary; ctx.globalAlpha=coreScale;
+  ctx.beginPath(); ctx.arc(cx,cy,R+12,-Math.PI/2,-Math.PI/2+6.283*(conf/100)); ctx.stroke();
+  // disco
+  var disc=ctx.createRadialGradient(cx-R*0.3,cy-R*0.3,R*0.1,cx,cy,R);
+  disc.addColorStop(0,"#123b59"); disc.addColorStop(1,"#0a1d30");
+  ctx.fillStyle=disc; ctx.beginPath(); ctx.arc(cx,cy,R,0,6.283); ctx.fill();
+  ctx.strokeStyle=hexA(THEME.primary,0.7); ctx.lineWidth=1.4+pulse;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,6.283); ctx.stroke();
+  // textos GLOBAIS (sem partida específica)
+  ctx.textAlign="center";
+  ctx.fillStyle=THEME.muted; ctx.font="700 "+(R*0.105)+"px Segoe UI,sans-serif";
+  ctx.fillText("PROCESSANDO EM TEMPO REAL", cx, cy-R*0.50);
+  ctx.fillStyle=THEME.secondary; ctx.font="800 "+(R*0.46)+"px Segoe UI,sans-serif";
+  ctx.fillText(Math.round(conf), cx, cy+R*0.06);
+  ctx.fillStyle=THEME.text; ctx.font="700 "+(R*0.11)+"px Segoe UI,sans-serif";
+  ctx.fillText("Confiança média /100", cx, cy+R*0.28);
+  ctx.fillStyle=THEME.primary; ctx.font="700 "+(R*0.11)+"px Segoe UI,sans-serif";
+  ctx.fillText(Math.round(coreLive.matches)+" partidas em tempo real", cx, cy+R*0.49);
+  ctx.fillStyle=THEME.secondary; ctx.font="700 "+(R*0.10)+"px Segoe UI,sans-serif";
+  ctx.fillText("Risco de dar errado: BAIXO", cx, cy+R*0.69);
+  ctx.restore();
+  // barras de fluxo de sinais (genéricas, não de uma partida)
+  drawSignalBars(cx, cy+R*1.62, R*1.7, coreScale);
+}
+
+function drawSignalBars(x,y,w,alpha){
+  var items=[["Sinais ofensivos",coreLive.offensive,THEME.danger],["Sinais defensivos",coreLive.defensive,THEME.primary],
+            ["Sinais táticos",coreLive.tactical,THEME.secondary],["Mercado / odds",coreLive.market,THEME.warning]];
+  var bw=w, bh=6, gap=14;
+  ctx.save(); ctx.globalAlpha=alpha; ctx.textAlign="left";
+  for(var i=0;i<items.length;i++){
+    var yy=y+i*(bh+gap);
+    ctx.fillStyle=hexA(THEME.border,0.8); rrect(x-bw/2,yy,bw,bh,3); ctx.fill();
+    ctx.fillStyle=items[i][2]; rrect(x-bw/2,yy,bw*(items[i][1]/100),bh,3); ctx.fill();
+    ctx.fillStyle=THEME.muted; ctx.font="11px Segoe UI,sans-serif"; ctx.fillText(items[i][0],x-bw/2,yy-3);
+    ctx.fillStyle=THEME.text; ctx.textAlign="right"; ctx.fillText(Math.round(items[i][1])+"%",x+bw/2,yy-3); ctx.textAlign="left";
+  }
+  ctx.restore();
+}
+
+function rrect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function hexA(hex,a){ var h=hex.replace("#",""); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  return "rgba("+parseInt(h.substr(0,2),16)+","+parseInt(h.substr(2,2),16)+","+parseInt(h.substr(4,2),16)+","+a+")"; }
+
+/* ===== interação: agentes ===== */
+function nearestAgent(mx,my){ var best=null,bd=18*18;
+  for(var i=0;i<AGENTS.length;i++){ var a=AGENTS[i],dx=a.x-mx,dy=a.y-my,d=dx*dx+dy*dy; if(d<bd){bd=d;best=a;} } return best; }
+canvas.addEventListener("mousemove",function(e){
+  hoverAgent=nearestAgent(e.clientX,e.clientY); var tip=document.getElementById("tip");
+  if(hoverAgent){
+    document.getElementById("ttName").textContent=hoverAgent.id+" — "+hoverAgent.name;
+    var ttc=document.getElementById("ttCat"); ttc.textContent=hoverAgent.catLabel; ttc.style.color=hoverAgent.color;
+    var st=STATUS_MAP[hoverAgent.status]||STATUS_MAP.idle;
+    var ts=document.getElementById("ttStatus"); ts.textContent=st.label; ts.style.color=st.color;
+    document.getElementById("ttConf").textContent=hoverAgent.confidence+"%";
+    document.getElementById("ttMsg").textContent=hoverAgent.lastMessage;
+    drawTipChart(hoverAgent); tip.classList.add("on"); canvas.style.cursor="pointer";
+  } else { tip.classList.remove("on"); canvas.style.cursor="default"; }
+});
+canvas.addEventListener("mouseleave",function(){ hoverAgent=null; document.getElementById("tip").classList.remove("on"); });
+function positionTip(){ var tip=document.getElementById("tip"); if(!hoverAgent) return;
+  var tw=tip.offsetWidth||240, th=tip.offsetHeight||150, x=hoverAgent.x+16, y=hoverAgent.y+16;
+  if(x+tw>W-8) x=hoverAgent.x-tw-16; if(y+th>H-8) y=H-th-8;
+  tip.style.left=x+"px"; tip.style.top=Math.max(8,y)+"px"; }
+function drawTipChart(a){ var c=document.getElementById("ttChart"),x=c.getContext("2d");
+  x.clearRect(0,0,c.width,c.height); var n=a.miniDisp.length,cw=c.width/n;
+  for(var i=0;i<n;i++){ var v=a.miniDisp[i],pv=i>0?a.miniDisp[i-1]:v,up=v>=pv;
+    x.fillStyle=up?THEME.secondary:THEME.danger; x.strokeStyle=x.fillStyle;
+    var bx=i*cw+cw*0.5,h=c.height-10,hi=8+h-Math.max(v,pv)*h,lo=8+h-Math.min(v,pv)*h,top=8+h-v*h;
+    x.lineWidth=1.2; x.beginPath(); x.moveTo(bx,hi); x.lineTo(bx,lo); x.stroke(); x.fillRect(bx-3,top-2,6,4); } }
+canvas.addEventListener("click",function(e){ var a=nearestAgent(e.clientX,e.clientY); if(a) openModal(a); });
+function openModal(a){
+  var st=STATUS_MAP[a.status]||STATUS_MAP.idle;
+  var mc=document.getElementById("mdCat"); mc.textContent=a.catLabel; mc.style.color=a.color;
+  document.getElementById("mdName").textContent=a.id+" — "+a.name;
+  document.getElementById("mdStatus").textContent=st.label;
+  document.getElementById("mdConf").textContent=a.confidence+"%";
+  document.getElementById("mdAct").textContent=a.activityLevel+"%";
+  document.getElementById("mdSig").textContent=a.signalStrength+"%";
+  document.getElementById("mdRole").textContent="Integra o grupo “"+a.catLabel+"”. Analisa um tipo específico de sinal "+
+    "em todas as próximas partidas ao mesmo tempo e envia seu veredito ao núcleo central, que cruza os 100 agentes em tempo real.";
+  document.getElementById("mdConn").innerHTML=a.connectedTo.map(function(id){return '<span>'+id+'</span>';}).join(" ");
+  document.getElementById("modal").classList.add("on");
+}
+document.getElementById("mdClose").addEventListener("click",function(){ document.getElementById("modal").classList.remove("on"); });
+document.getElementById("modal").addEventListener("click",function(e){ if(e.target.id==="modal") this.classList.remove("on"); });
+
+/* ===== interação: grupos ===== */
+function renderGroupRows(k){
+  var html="";
+  for(var i=0;i<AGENTS.length;i++){ if(AGENTS[i].cluster!==k) continue;
+    var a=AGENTS[i], st=STATUS_MAP[a.status]||STATUS_MAP.idle;
+    html+='<div class="ia-row"><span class="ia-dot" style="background:'+st.color+';box-shadow:0 0 8px '+st.color+'"></span>'+
+      '<div><div class="ia-n">'+a.name+'</div><div class="ia-s">'+a.id+' · <span style="color:'+st.color+'">'+st.label+'</span></div></div>'+
+      '<span class="ia-c">'+a.confidence+'%</span></div>';
+  }
+  document.getElementById("gmList").innerHTML=html;
+}
+function openGroupModal(k){
+  var cat=CATEGORIES[k];
+  var gc=document.getElementById("gmCat"); gc.textContent="Grupo "+(k+1)+" · 10 IAs"; gc.style.color=cat.color;
+  document.getElementById("gmName").textContent=cat.label;
+  renderGroupRows(k);
+  openGroup=k;                              // mantém em movimento enquanto aberto
+  document.getElementById("gmodal").classList.add("on");
+}
+function closeGroupModal(){ openGroup=null; document.getElementById("gmodal").classList.remove("on"); }
+document.getElementById("gmClose").addEventListener("click",closeGroupModal);
+document.getElementById("gmodal").addEventListener("click",function(e){ if(e.target.id==="gmodal") closeGroupModal(); });
+
+/* ===== botão Entrar no sistema ===== */
+function showToast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(window._tt); window._tt=setTimeout(function(){ t.classList.remove("on"); }, 2800); }
+document.getElementById("enterBtn").addEventListener("click",function(){
+  // Dentro do app (iframe): avisa a página principal para entrar no sistema.
+  // Aberto sozinho (demo): mostra um aviso.
+  if(window.parent && window.parent!==window){ window.parent.postMessage("cerebro-entrar","*"); }
+  else { showToast("✅ No sistema, este botão leva você ao app (Agenda, Jogos, Conta...)."); }
+});
+
+/* ===== boot ===== */
+buildGroups();
+window.addEventListener("resize",layout);
+layout();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

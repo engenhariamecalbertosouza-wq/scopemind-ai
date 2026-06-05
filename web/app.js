@@ -175,7 +175,24 @@ function preencherDatasAbas() {
   if ($("#data-hoje")) $("#data-hoje").textContent = fmt(hoje);
   if ($("#data-amanha")) $("#data-amanha").textContent = fmt(amanha);
 }
+// Tela inicial: Cérebro de Análise ao Vivo (carregado isolado num iframe)
+function mostrarCerebro() {
+  const ov = $("#cerebro-overlay"), fr = $("#cerebro-frame");
+  if (!ov || !fr) return;
+  fr.src = "cerebro.html?t=" + Date.now();   // recarrega a animação do zero
+  ov.classList.remove("hidden");
+}
+function esconderCerebro() {
+  const ov = $("#cerebro-overlay"), fr = $("#cerebro-frame");
+  if (ov) ov.classList.add("hidden");
+  if (fr) fr.src = "about:blank";             // para a animação e libera CPU
+}
+window.addEventListener("message", (e) => {
+  if (e.origin === window.location.origin && e.data === "cerebro-entrar") esconderCerebro();
+});
+
 async function entrarNoApp() {
+  mostrarCerebro();
   $("#tela-login").classList.add("hidden");
   $("#tela-app").classList.remove("hidden");
   aplicarPapel();

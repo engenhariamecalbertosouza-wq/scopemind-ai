@@ -1,6 +1,6 @@
 // Service worker do ScopeMind AI (deixa o app instalável e funcional offline parcialmente).
-const CACHE = "scopemind-v3";
-const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.json", "/icon-192.png"];
+const CACHE = "scopemind-v4";
+const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/cerebro.html", "/manifest.json", "/icon-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
