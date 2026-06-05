@@ -347,12 +347,46 @@ LIGAS_DESTAQUE = [
 ]
 
 
+# 1a DIVISAO (nome exato, minusculo) de cada pais de destaque. Brasil e tratado
+# a parte (Serie A/B/C + Copa do Brasil). So estas ligas nacionais entram.
+TOP_DIVISAO = {
+    "england": {"premier league"},
+    "spain": {"la liga", "laliga"},
+    "france": {"ligue 1"},
+    "germany": {"bundesliga"},
+    "italy": {"serie a"},
+    "portugal": {"primeira liga", "liga portugal", "liga portugal betclic"},
+    "netherlands": {"eredivisie"},
+    "argentina": {"liga profesional argentina", "liga profesional", "primera division", "primera división", "torneo betano"},
+    "saudi-arabia": {"pro league", "saudi pro league", "professional league"},
+    "saudi arabia": {"pro league", "saudi pro league", "professional league"},
+    "usa": {"major league soccer", "mls"},
+    "united-states": {"major league soccer", "mls"},
+    "united states": {"major league soccer", "mls"},
+    "belgium": {"jupiler pro league", "pro league", "first division a"},
+    "mexico": {"liga mx"},
+    "colombia": {"primera a", "liga betplay", "liga betplay dimayor"},
+    "chile": {"primera division", "primera división", "liga de primera"},
+    "uruguay": {"primera division", "primera división"},
+    "canada": {"canadian premier league"},
+    "china": {"super league", "chinese super league"},
+    "china-pr": {"super league", "chinese super league"},
+}
+
+
 def _eh_destaque(league, country):
-    l = (league or "").lower()
+    l = (league or "").lower().strip()
+    p = (country or "").lower().strip()
+    # 1) Internacionais/continentais (Copa do Mundo, Champions, Libertadores...) sempre entram
     for termo in LIGAS_DESTAQUE:
         if termo in l:
             return True
-    return (country or "").lower() in PAISES_DESTAQUE
+    # 2) Brasil: Série A, B e C (+ Copa do Brasil). Série D fica de fora.
+    if p in ("brazil", "brasil"):
+        return ("serie a" in l) or ("serie b" in l) or ("serie c" in l) or ("copa do bra" in l)
+    # 3) Outros países de destaque: SOMENTE a 1ª divisão
+    topo = TOP_DIVISAO.get(p)
+    return bool(topo) and (l in topo)
 
 
 def _prioridade(j):
