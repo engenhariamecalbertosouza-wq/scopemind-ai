@@ -182,9 +182,23 @@ main { padding: 12px 22px 60px; max-width: 1200px; margin: 0 auto; }
 }
 .cj-placar { color: var(--verde); font-weight: 800; font-size: 16px; }
 .cj-rodape { display: flex; justify-content: space-between; align-items: center;
-  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borda); font-size: 12px; }
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borda); font-size: 12px; gap: 10px; }
 .cj-hora { color: var(--texto); font-weight: 700; }
 .cj-status { color: var(--texto-fraco); }
+/* Placar de Acertos: palpite/resultado empilhados + festa do placar exato */
+.pl-info { display: flex; flex-direction: column; gap: 3px; line-height: 1.5; }
+.pl-info b { color: var(--texto); }
+.pl-status { font-weight: 700; white-space: nowrap; }
+.card-exato { border-color: #FDE047; box-shadow: 0 0 0 1px rgba(253,224,71,.35), 0 10px 30px rgba(253,224,71,.14); }
+.pl-festa {
+  margin-top: 12px; text-align: center; font-weight: 800; font-size: 13.5px; letter-spacing: .3px;
+  color: #06140a; padding: 10px 12px; border-radius: 11px;
+  background: linear-gradient(90deg, #FDE047, #22C55E, #35C2FF, #FDE047);
+  background-size: 280% 100%; animation: festaBrilho 2.6s linear infinite, festaPulo 1.4s ease-in-out infinite;
+  box-shadow: 0 0 22px rgba(253,224,71,.45);
+}
+@keyframes festaBrilho { to { background-position: 280% 0; } }
+@keyframes festaPulo { 0%,100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 .cj-tv { color: var(--texto-fraco); margin-top: 8px; font-size: 12px; }
 .cj-tv b { color: var(--texto); }
 .vazio { text-align: center; color: var(--texto-fraco); padding: 50px 20px; }

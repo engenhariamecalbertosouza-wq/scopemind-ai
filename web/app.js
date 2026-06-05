@@ -950,11 +950,19 @@ function cardPlacar(it) {
   const M = { acerto: ["✅ Acertou", "var(--verde)"], erro: ["❌ Errou", "var(--vermelho)"],
               pendente: ["⏳ Aguardando o jogo", "var(--texto-fraco)"], encerrado: ["✔️ Encerrado", "var(--texto-fraco)"] };
   const m = M[it.situacao] || M.pendente;
+  const exato = (it.situacao === "acerto" && it.placar_exato);
+  if (exato) div.className += " card-exato";
   div.innerHTML =
     '<div class="cj-liga"><span>' + esc(nomeLiga(it.league || "")) + '</span><span class="pais">' + esc(it.country_pt || "") + "</span></div>" +
     '<div class="cj-times"><div class="cj-time"><span>' + esc(it.home) + '</span></div><span class="cj-vs">VS</span><div class="cj-time fora"><span>' + esc(it.away) + "</span></div></div>" +
-    '<div class="cj-rodape"><span>Palpite da IA: <b>' + esc(palpitePlacar(it)) + "</b>" + (it.placar ? ' · Resultado Real: <b>' + esc(resultadoRealNome(it)) + "</b>" : "") + "</span>" +
-      '<span style="color:' + m[1] + ';font-weight:700">' + m[0] + "</span></div>";
+    '<div class="cj-rodape">' +
+      '<div class="pl-info">' +
+        '<div>Palpite da IA: <b>' + esc(palpitePlacar(it)) + "</b></div>" +
+        (it.placar ? '<div>Resultado Real: <b>' + esc(resultadoRealNome(it)) + "</b></div>" : "") +
+      "</div>" +
+      (exato ? "" : '<span class="pl-status" style="color:' + m[1] + '">' + m[0] + "</span>") +
+    "</div>" +
+    (exato ? '<div class="pl-festa">🎉🎊 ACERTOU O PLACAR EXATO! 🎊🎉</div>' : "");
   return div;
 }
 
