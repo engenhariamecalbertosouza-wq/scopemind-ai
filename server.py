@@ -573,16 +573,12 @@ class Handler(BaseHTTPRequestHandler):
         dados = self._corpo_json()
         nome = (dados.get("nome") or "").strip()
         email = (dados.get("email") or "").strip().lower()
-        cpf = re.sub(r"\D", "", dados.get("cpf") or "")
         senha = (dados.get("senha") or "").strip()  # ignora espacos acidentais
         if len(nome) < 2:
             self._json({"erro": "Informe o seu nome."}, 400)
             return
         if "@" not in email or "." not in email.split("@")[-1]:
             self._json({"erro": "E-mail inválido."}, 400)
-            return
-        if not cpf_valido(cpf):
-            self._json({"erro": "CPF inválido. Confira os números."}, 400)
             return
         if len(senha) < 4:
             self._json({"erro": "A senha precisa ter ao menos 4 caracteres."}, 400)
@@ -592,14 +588,18 @@ class Handler(BaseHTTPRequestHandler):
         if email in usuarios:
             self._json({"erro": "Este e-mail já está cadastrado."}, 409)
             return
-        for ex in usuarios.values():
-            if ex.get("cpf") == cpf:
-                self._json({"erro": "Este CPF já está cadastrado."}, 409)
-                return
+        # 1 conta por IP: evita o mesmo cliente criar varias contas gratis na mesma
+        # rede/dispositivo (cada conta nova ganha analises gratis).
+        ip = self._login_ip()
+        if ip:
+            for ex in usuarios.values():
+                if ex.get("role") == "cliente" and ex.get("ip") == ip:
+                    self._json({"erro": "Já existe uma conta criada neste dispositivo/rede. Faça login na conta que você já tem, ou fale com o suporte."}, 409)
+                    return
         salt = secrets.token_hex(8)
         usuarios[email] = {
             "salt": salt, "hash": _hash_senha(senha, salt), "role": "cliente",
-            "nome": nome, "email": email, "cpf": cpf, "analises_usadas": 0,
+            "nome": nome, "email": email, "ip": ip, "analises_usadas": 0,
             "criado_em": time.strftime("%d/%m/%Y %H:%M"),
         }
         salvar_config(raw)

@@ -30,6 +30,18 @@ body {
 #cerebro-overlay { position: fixed; inset: 0; z-index: 9999; background: #06111F; }
 #cerebro-frame { width: 100%; height: 100%; border: 0; display: block; }
 
+/* Bloqueio temporário no celular */
+#bloqueio-celular { position: fixed; inset: 0; z-index: 99999; background: #06111F;
+  display: flex; align-items: center; justify-content: center; padding: 24px; }
+.bc-card { max-width: 380px; text-align: center;
+  background: linear-gradient(180deg, var(--cartao), var(--cartao2));
+  border: 1px solid var(--borda); border-radius: 18px; padding: 30px 24px; }
+.bc-logo { font-size: 44px; }
+.bc-card h2 { margin: 10px 0 8px; font-size: 21px; }
+.bc-card p { color: var(--texto-fraco); font-size: 14px; line-height: 1.6; margin: 10px 0; }
+.bc-card .bc-dica { color: var(--verde); font-weight: 600; }
+.bc-card .btn-wpp { margin-top: 16px; }
+
 /* ---- Pagamentos / Assinatura VIP ---- */
 .pag-titulo { margin: 0 0 4px; font-size: 20px; }
 .pag-sub { color: #9fb0c7; font-size: 13px; margin: 0 0 14px; }

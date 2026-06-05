@@ -150,7 +150,7 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
   $("#erro-cadastro").textContent = "";
   try {
     const d = await api("/api/cadastrar", { method: "POST", body: JSON.stringify({
-      nome: $("#cad-nome").value, cpf: $("#cad-cpf").value,
+      nome: $("#cad-nome").value,
       email: $("#cad-email").value, senha: $("#cad-senha").value }) });
     aplicarSessao(d);
     entrarNoApp();
@@ -1798,7 +1798,17 @@ document.querySelectorAll("[data-fechar]").forEach((b) => b.addEventListener("cl
 document.querySelectorAll(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m) m.classList.add("hidden"); }));
 
 // ===================== Início =====================
-if (TOKEN) { entrarNoApp().catch(sair); }
+// Bloqueio TEMPORÁRIO no celular (economia de cota da API). Para RELIGAR o
+// acesso mobile no futuro, basta apagar este bloco "if (EH_CELULAR)".
+var EH_CELULAR = /Mobi|Android|iPhone|iPod|Windows Phone|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent || "");
+if (EH_CELULAR) {
+  var bc = document.getElementById("bloqueio-celular");
+  if (bc) bc.classList.remove("hidden");
+  var tl = document.getElementById("tela-login"); if (tl) tl.classList.add("hidden");
+  var ta = document.getElementById("tela-app"); if (ta) ta.classList.add("hidden");
+} else if (TOKEN) {
+  entrarNoApp().catch(sair);
+}
 
 // ===================== PWA (app instalável) =====================
 if ("serviceWorker" in navigator) {
