@@ -223,6 +223,34 @@ def _saneia(dados):
     return dados
 
 
+# Correcoes de texto pos-IA (termos que o dono prefere)
+_SUBST = [
+    ("convocações históricas", "convocações anteriores"),
+    ("convocação histórica", "convocações anteriores"),
+    ("convocacoes historicas", "convocações anteriores"),
+    ("convocacao historica", "convocações anteriores"),
+    ("convocação histórico", "convocações anteriores"),
+]
+
+
+def _corrigir_str(s):
+    if not isinstance(s, str):
+        return s
+    for a, b in _SUBST:
+        s = re.sub(re.escape(a), b, s, flags=re.IGNORECASE)
+    return s
+
+
+def _corrigir_termos(obj):
+    if isinstance(obj, str):
+        return _corrigir_str(obj)
+    if isinstance(obj, list):
+        return [_corrigir_termos(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _corrigir_termos(v) for k, v in obj.items()}
+    return obj
+
+
 def analisar(partida, contexto, cfg):
     modelo = cfg.get("anthropic_model", "claude-opus-4-8")
     chave = cfg.get("anthropic_api_key", "")
@@ -231,7 +259,7 @@ def analisar(partida, contexto, cfg):
 
     dados = None
     try:
-        dados = _saneia(_extrair_json(texto))
+        dados = _corrigir_termos(_saneia(_extrair_json(texto)))
     except Exception:
         dados = None
 
@@ -248,7 +276,7 @@ def analisar(partida, contexto, cfg):
     return {
         "ok": True,
         "dados": None,
-        "relatorio": texto,
+        "relatorio": _corrigir_str(texto),
         "confianca": "Média",
         "prognostico": "",
         "modelo": modelo,
