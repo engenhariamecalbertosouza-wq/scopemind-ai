@@ -579,27 +579,19 @@ const NOMES_AGENTES = [
 async function rodarAnalise(j) {
   if (!j) return;
   fechar("modal-detalhes");
+  abrirPreparando(j);                 // mesma tela bonita "100 IAs" (20s) p/ admin também
+  const inicio = Date.now();
+  let r = null, err = null;
+  try { r = await api("/api/analisar", { method: "POST", body: JSON.stringify(j) }); }
+  catch (e) { err = e; }
+  if (err) { fecharPreparando(); toast("⚠️ " + err.message); abrirDetalhes(j); return; }
+  const faltam = Math.max(0, 20000 - (Date.now() - inicio));   // mínimo de 20s na tela
+  await new Promise((res) => setTimeout(res, faltam));
+  fecharPreparando();
+  if (r.chave) REPORTS_SET.add(r.chave);
+  if (r.analises_restantes !== undefined) setRest(r.analises_restantes);
   abrirModalRelatorio(j);
-  $("#rel-conteudo").classList.add("hidden");
-  $("#rel-carregando").classList.remove("hidden");
-  let i = 0;
-  $("#carregando-texto").textContent = NOMES_AGENTES[0];
-  timerCarregando = setInterval(() => {
-    i = (i + 1) % NOMES_AGENTES.length;
-    $("#carregando-texto").textContent = NOMES_AGENTES[i];
-  }, 3500);
-  try {
-    const r = await api("/api/analisar", { method: "POST", body: JSON.stringify(j) });
-    clearInterval(timerCarregando);
-    if (r.chave) REPORTS_SET.add(r.chave);
-    if (r.analises_restantes !== undefined) setRest(r.analises_restantes);
-    preencherRelatorio(Object.assign({}, j, { confianca: r.confianca, relatorio: r.relatorio, dados: r.dados, chave: r.chave, desatualizado: false }));
-  } catch (err) {
-    clearInterval(timerCarregando);
-    fechar("modal-relatorio");
-    toast("⚠️ " + err.message);
-    abrirDetalhes(j);
-  }
+  preencherRelatorio(Object.assign({}, j, { confianca: r.confianca, relatorio: r.relatorio, dados: r.dados, chave: r.chave, desatualizado: false }));
 }
 
 // ===================== Análise do CLIENTE (cronômetro de 30s) =====================
@@ -617,10 +609,10 @@ const PREP_FASES = [
 function abrirPreparando(j) {
   $("#prep-jogo").innerHTML = esc(j.home || "") + '<span class="vs-titulo">VS</span>' + esc(j.away || "");
   $("#prep-fase").textContent = PREP_FASES[0];
-  $("#prep-num").textContent = "30";
+  $("#prep-num").textContent = "20";
   $("#prep-barra-fill").style.width = "0%";
   $("#modal-preparando").classList.remove("hidden");
-  let n = 30, fi = 0;
+  let n = 20, fi = 0;
   if (prepTimer) clearInterval(prepTimer);
   prepTimer = setInterval(() => {
     n--;
@@ -630,7 +622,7 @@ function abrirPreparando(j) {
       $("#prep-barra-fill").style.width = "100%";
     } else {
       $("#prep-num").textContent = n;
-      $("#prep-barra-fill").style.width = Math.round((30 - n) / 30 * 100) + "%";
+      $("#prep-barra-fill").style.width = Math.round((20 - n) / 20 * 100) + "%";
       if (n % 5 === 0) { fi = (fi + 1) % PREP_FASES.length; $("#prep-fase").textContent = PREP_FASES[fi]; }
     }
   }, 1000);
@@ -654,8 +646,8 @@ async function rodarAnaliseCliente(j) {
     abrirDetalhes(j);
     return;
   }
-  // sucesso: garante o mínimo de 30s de "preparação" (mesmo se reaproveitou na hora)
-  const faltam = Math.max(0, 30000 - (Date.now() - inicio));
+  // sucesso: garante o mínimo de 20s de "preparação" (mesmo se reaproveitou na hora)
+  const faltam = Math.max(0, 20000 - (Date.now() - inicio));
   await new Promise((r) => setTimeout(r, faltam));
   fecharPreparando();
   if (resp.chave) REPORTS_SET.add(resp.chave);

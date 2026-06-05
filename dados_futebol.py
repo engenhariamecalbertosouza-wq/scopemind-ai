@@ -332,7 +332,11 @@ MAX_JOGOS_DIA = 50  # teto de jogos por dia (mostra os mais importantes)
 
 # Paises cujas divisoes/copas NACIONAIS sao destaque
 PAISES_DESTAQUE = {"brazil", "brasil", "england", "spain", "france", "germany",
-                   "italy", "portugal", "netherlands", "argentina"}
+                   "italy", "portugal", "netherlands", "argentina",
+                   # incluidos a pedido do dono:
+                   "saudi-arabia", "saudi arabia", "usa", "united-states", "united states",
+                   "belgium", "mexico", "colombia", "chile", "uruguay", "canada",
+                   "china", "china-pr"}
 
 # Competicoes internacionais/continentais sempre destaque (casa por NOME da liga)
 LIGAS_DESTAQUE = [
@@ -375,6 +379,11 @@ def _prioridade(j):
         return grandes[p]
     if "europa league" in l or "conference league" in l:
         return 30
+    outros = {"saudi-arabia": 40, "saudi arabia": 40, "usa": 41, "united-states": 41,
+              "united states": 41, "mexico": 42, "belgium": 43, "colombia": 44,
+              "chile": 45, "uruguay": 46, "canada": 47, "china": 48, "china-pr": 48}
+    if p in outros:
+        return outros[p]
     if "sul-americana" in l or "sudamericana" in l:
         return 31
     return 100
