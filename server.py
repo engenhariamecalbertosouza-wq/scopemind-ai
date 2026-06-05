@@ -588,14 +588,15 @@ class Handler(BaseHTTPRequestHandler):
         if email in usuarios:
             self._json({"erro": "Este e-mail já está cadastrado."}, 409)
             return
-        # 1 conta por IP: evita o mesmo cliente criar varias contas gratis na mesma
-        # rede/dispositivo (cada conta nova ganha analises gratis).
+        # Maximo de 2 contas por IP: evita o mesmo cliente criar varias contas
+        # gratis na mesma rede/dispositivo (cada conta nova ganha analises gratis).
         ip = self._login_ip()
         if ip:
-            for ex in usuarios.values():
-                if ex.get("role") == "cliente" and ex.get("ip") == ip:
-                    self._json({"erro": "Já existe uma conta criada neste dispositivo/rede. Faça login na conta que você já tem, ou fale com o suporte."}, 409)
-                    return
+            mesmos = sum(1 for ex in usuarios.values()
+                         if ex.get("role") == "cliente" and ex.get("ip") == ip)
+            if mesmos >= 2:
+                self._json({"erro": "Já existem 2 contas criadas neste dispositivo/rede (limite). Faça login em uma delas, ou fale com o suporte."}, 409)
+                return
         salt = secrets.token_hex(8)
         usuarios[email] = {
             "salt": salt, "hash": _hash_senha(senha, salt), "role": "cliente",
