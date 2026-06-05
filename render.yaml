@@ -30,3 +30,10 @@ services:
         value: "3"
       - key: APP_SECRET
         generateValue: true             # a Render gera 1 vez e mantem (logins estaveis)
+      # ---- Pagamentos / VIP automatico (Mercado Pago) ----
+      - key: MP_ACCESS_TOKEN
+        sync: false                     # Access Token do Mercado Pago (TEST-... p/ teste; APP_USR-... p/ producao)
+      - key: APP_URL
+        value: https://scopemind-ai.com.br   # usado no webhook e no retorno do cartao
+      - key: VIP_PRECO
+        value: "49.90"                  # preco do VIP (promo 1000 primeiros: de 99,90 por 49,90)

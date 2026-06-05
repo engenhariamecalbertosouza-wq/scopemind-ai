@@ -42,6 +42,7 @@ import dados_futebol    # noqa: E402
 import relatorios       # noqa: E402
 import chat             # noqa: E402
 import comunidade       # noqa: E402
+import pagamentos       # noqa: E402
 
 
 # ----------------------------------------------------------------------------
@@ -204,6 +205,22 @@ def _vip_dias(cfg):
         return 30
 
 
+def _ativar_vip_usuario(usuario_key):
+    """Liga o VIP de um cliente (vip=True + prazo). Usado pelo pagamento aprovado
+    (webhook/verificacao) e pela liberacao manual do admin."""
+    if not usuario_key:
+        return False
+    raw = _config_raw()
+    alvo = raw.get("usuarios", {}).get(usuario_key)
+    if not alvo or alvo.get("role", "admin") == "admin":
+        return False
+    cfg = carregar_config()
+    alvo["vip"] = True
+    alvo["vip_ate"] = time.time() + _vip_dias(cfg) * 86400
+    salvar_config(raw)
+    return True
+
+
 # Anti forca-bruta no login: conta falhas por IP e bloqueia temporariamente.
 _LOGIN_FAILS = {}   # ip -> (qtd_falhas, inicio_da_janela)
 _LOGIN_LOCK = {}    # ip -> bloqueado_ate (timestamp)
@@ -320,6 +337,32 @@ class Handler(BaseHTTPRequestHandler):
 
     def _api_get(self, rota):
         cfg = carregar_config()
+        if rota == "/api/mp/info":
+            usuario = usuario_do_token(cfg, self._token())
+            u = cfg.get("usuarios", {}).get(usuario, {})
+            info = {"plano": pagamentos.plano(), "mp_ok": pagamentos.mp_configurado()}
+            if usuario:
+                info["logado"] = True
+                info["admin"] = _eh_admin(u)
+                info["vip"] = _vip_valido(u)
+                info["vip_ate"] = u.get("vip_ate")
+                ult = pagamentos.status_do_usuario(usuario)
+                if ult:
+                    info["pagamento"] = {k: ult.get(k) for k in (
+                        "id", "status", "payment_method", "amount", "paid_at", "created_at")}
+            self._json(info)
+            return
+        if rota == "/api/mp/admin/pagamentos":
+            usuario = usuario_do_token(cfg, self._token())
+            u = cfg.get("usuarios", {}).get(usuario, {})
+            if not usuario or not _eh_admin(u):
+                self._json({"erro": "Apenas o administrador."}, 403)
+                return
+            self._json({"pagamentos": pagamentos.listar_admin()})
+            return
+        if rota == "/api/mp/webhook":
+            self._json({"ok": True})   # MP as vezes faz um GET de teste
+            return
         if rota == "/api/status":
             self._json({
                 "ao_vivo_dados": bool(cfg.get("football_api_key")),
@@ -476,6 +519,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._com_admin_bloquear()
             elif rota == "/api/trocar-senha":
                 self._trocar_senha()
+            elif rota == "/api/mp/pix":
+                self._mp_pix()
+            elif rota == "/api/mp/cartao":
+                self._mp_cartao()
+            elif rota == "/api/mp/verificar":
+                self._mp_verificar()
+            elif rota == "/api/mp/webhook":
+                self._mp_webhook()
+            elif rota == "/api/mp/admin/liberar":
+                self._mp_admin_liberar()
             else:
                 self._json({"erro": "rota nao encontrada"}, 404)
         except Exception as e:
@@ -1033,6 +1086,96 @@ class Handler(BaseHTTPRequestHandler):
         ru["salt"] = salt
         ru["hash"] = _hash_senha(nova, salt)
         salvar_config(raw)
+        self._json({"ok": True})
+
+    # ---- PAGAMENTOS / VIP (Mercado Pago) ----
+    def _mp_cliente(self):
+        """(usuario_key, email, nome, u, cfg) do logado, ou usuario_key=None."""
+        cfg = carregar_config()
+        usuario = usuario_do_token(cfg, self._token())
+        if not usuario:
+            return None, None, None, {}, cfg
+        u = cfg.get("usuarios", {}).get(usuario, {})
+        return usuario, u.get("email", usuario), u.get("nome", usuario), u, cfg
+
+    def _mp_pix(self):
+        usuario, email, nome, u, cfg = self._mp_cliente()
+        if not usuario:
+            self._json({"erro": "Faça login para assinar o VIP."}, 401); return
+        if _eh_admin(u):
+            self._json({"erro": "O administrador já tem acesso total."}, 400); return
+        if not pagamentos.mp_configurado():
+            self._json({"erro": "Pagamentos ainda não foram configurados. Fale com o suporte."}, 503); return
+        try:
+            reg = pagamentos.criar_pix(usuario, email, nome)
+        except Exception as e:
+            self._json({"erro": str(e)}, 502); return
+        self._json({"ok": True, "id": reg["id"], "status": reg["status"],
+                    "qr_code_base64": reg.get("qr_code_base64", ""),
+                    "pix_copia_cola": reg.get("pix_copy_paste", ""),
+                    "ticket_url": reg.get("ticket_url", ""), "valor": reg["amount"]})
+
+    def _mp_cartao(self):
+        usuario, email, nome, u, cfg = self._mp_cliente()
+        if not usuario:
+            self._json({"erro": "Faça login para assinar o VIP."}, 401); return
+        if _eh_admin(u):
+            self._json({"erro": "O administrador já tem acesso total."}, 400); return
+        if not pagamentos.mp_configurado():
+            self._json({"erro": "Pagamentos ainda não foram configurados. Fale com o suporte."}, 503); return
+        try:
+            reg = pagamentos.criar_cartao(usuario, email, nome)
+        except Exception as e:
+            self._json({"erro": str(e)}, 502); return
+        self._json({"ok": True, "id": reg["id"], "checkout_url": reg.get("checkout_url", "")})
+
+    def _mp_verificar(self):
+        usuario, email, nome, u, cfg = self._mp_cliente()
+        if not usuario:
+            self._json({"erro": "Não autorizado."}, 401); return
+        nosso_id = (self._corpo_json().get("id") or "").strip()
+        reg = pagamentos.obter(nosso_id)
+        if not reg or reg.get("usuario") != usuario:
+            self._json({"erro": "Pagamento não encontrado."}, 404); return
+        try:
+            reg, aprovado_agora = pagamentos.sincronizar(nosso_id)
+        except Exception:
+            reg, aprovado_agora = pagamentos.obter(nosso_id), False
+        if aprovado_agora:
+            _ativar_vip_usuario(usuario)
+        cfg2 = carregar_config()
+        vip = _vip_valido(cfg2.get("usuarios", {}).get(usuario, {}))
+        self._json({"ok": True, "status": (reg or {}).get("status", "pending"), "vip": vip})
+
+    def _mp_webhook(self):
+        # MP avisa aqui quando o pagamento muda. NUNCA confiamos no corpo: pegamos
+        # o id e consultamos a API do MP para saber o status real (anti-fraude).
+        body = self._corpo_json()
+        q = self._query()
+        pid = ""
+        if isinstance(body, dict):
+            pid = str(((body.get("data") or {}).get("id")) or body.get("id") or "")
+        if not pid:
+            pid = q.get("data.id") or q.get("id") or ""
+        tipo = (str(body.get("type") or body.get("topic") or "") + q.get("type", "") + q.get("topic", "")).lower()
+        if pid and ("payment" in tipo or not tipo):
+            try:
+                reg, aprovado_agora = pagamentos.processar_webhook_payment(pid)
+                if aprovado_agora and reg and reg.get("usuario"):
+                    _ativar_vip_usuario(reg["usuario"])
+            except Exception:
+                pass
+        self._json({"ok": True})
+
+    def _mp_admin_liberar(self):
+        cfg = carregar_config()
+        usuario = usuario_do_token(cfg, self._token())
+        u = cfg.get("usuarios", {}).get(usuario, {})
+        if not usuario or not _eh_admin(u):
+            self._json({"erro": "Apenas o administrador."}, 403); return
+        email = (self._corpo_json().get("email") or "").strip().lower()
+        if not _ativar_vip_usuario(email):
+            self._json({"erro": "Cliente não encontrado."}, 404); return
         self._json({"ok": True})
 
 

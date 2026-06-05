@@ -299,6 +299,53 @@
 
         <div id="conta-vip" class="conta-card"><div class="vazio">Carregando…</div></div>
 
+        <!-- Pagamentos e Assinatura VIP (Mercado Pago) -->
+        <div id="pagamento-card" class="conta-card pag-card hidden">
+          <h2 class="pag-titulo">💳 Pagamentos e Assinatura VIP</h2>
+          <p class="pag-sub">Continue usando sem limites e desbloqueie todos os recursos da plataforma.</p>
+
+          <div class="pag-plano">
+            <div class="pag-plano-topo">
+              <span class="pag-plano-nome">⭐ Plano VIP</span>
+              <span class="pag-preco"><s class="pag-de" id="pag-de">R$ 99,90</s> <b id="pag-por">R$ 49,90</b><small>/mês</small></span>
+            </div>
+            <div class="pag-promo" id="pag-promo"></div>
+            <ul class="pag-beneficios" id="pag-beneficios"></ul>
+          </div>
+
+          <div id="pag-status" class="pag-status"></div>
+
+          <div id="pag-acoes" class="pag-acoes">
+            <button id="btn-pix" class="btn-pix">📲 Pagar com Pix</button>
+            <button id="btn-cartao" class="btn-cartao">💳 Pagar com Cartão</button>
+          </div>
+
+          <div id="pag-pix-area" class="pag-pix hidden">
+            <p class="pag-pix-tit">Escaneie o QR Code no app do seu banco, ou copie o código:</p>
+            <img id="pag-qr" class="pag-qr" alt="QR Code do Pix" />
+            <textarea id="pag-pix-codigo" class="pag-pix-codigo" readonly rows="3"></textarea>
+            <div class="pag-pix-btns">
+              <button id="btn-copiar-pix" class="btn-secundario">📋 Copiar código Pix</button>
+              <button id="btn-verificar" class="btn-primario">🔄 Verificar pagamento</button>
+            </div>
+            <p class="pag-pix-aviso">Assim que o pagamento for confirmado, seu VIP é liberado <b>automaticamente</b>.</p>
+          </div>
+
+          <p id="pag-msg" class="pag-msg"></p>
+        </div>
+
+        <!-- Painel admin: pagamentos -->
+        <div id="pag-admin-card" class="conta-card hidden">
+          <h3>🧾 Pagamentos recebidos (admin)</h3>
+          <div id="pag-admin-lista"><div class="vazio">Carregando…</div></div>
+          <div class="pag-admin-liberar">
+            <h4>🔓 Liberar VIP manualmente (emergência)</h4>
+            <input id="pag-admin-email" type="email" placeholder="E-mail do cliente" />
+            <button id="btn-liberar-vip" class="btn-secundario">Liberar VIP deste cliente</button>
+            <p id="pag-admin-msg" class="ok"></p>
+          </div>
+        </div>
+
         <div id="conta-senha-card" class="conta-card hidden">
           <h3>🔑 Trocar senha</h3>
           <input id="conta-senha-atual" type="password" placeholder="Senha atual" autocomplete="current-password" />

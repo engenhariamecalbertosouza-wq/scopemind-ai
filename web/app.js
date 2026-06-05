@@ -659,6 +659,10 @@ async function rodarAnaliseCliente(j) {
   } catch (e) { err = e; }
   if (err) {                       // erro (ex.: acabou o crédito): não prende o cliente 30s
     fecharPreparando();
+    if (/grátis|gratuit|VIP|ilimitad/i.test(err.message || "")) {   // acabou o limite grátis
+      mostrarOfertaVip("Você usou todas as suas rodadas gratuitas. Para continuar sem interrupções, ative o plano VIP e tenha rodadas ilimitadas. O pagamento é seguro via Mercado Pago e a liberação acontece automaticamente.");
+      return;
+    }
     toast("⚠️ " + err.message);
     abrirDetalhes(j);
     return;
@@ -1389,6 +1393,7 @@ async function carregarConta() {
     $("#conta-vip").innerHTML = renderContaVip(d);
     $("#conta-senha-card").classList.toggle("hidden", !d.pode_trocar_senha);
     $("#conta-senha-msg").textContent = "";
+    carregarPagamentos(d);
   } catch (e) {
     $("#conta-vip").innerHTML = '<div class="vazio">Erro: ' + esc(e.message) + "</div>";
   }
@@ -1415,8 +1420,180 @@ function renderContaVip(d) {
   return '<h3>🎟️ Plano grátis</h3>' +
     '<p class="aviso-pequeno">Você ainda não é VIP.' + rest +
       ' Vire <b>VIP</b> para ter análises <b>ilimitadas</b> e acesso ao <b>Chat ao vivo</b>.</p>' +
-    '<a class="btn-wpp" target="_blank" rel="noopener" href="https://wa.me/5582920012133?text=Ola%2C%20vim%20do%20ScopeMind%20AI%20e%20quero%20virar%20VIP.">💬 Quero ser VIP</a>';
+    '<button class="btn-primario" onclick="irParaPagamento()">⭐ Ativar VIP agora</button>';
 }
+
+// ===================== Pagamentos e Assinatura VIP =====================
+let PAG_ID = null, PAG_POLL = null, PAG_POLL_N = 0;
+function reais(v) { return (Math.round((+v || 0) * 100) / 100).toFixed(2).replace(".", ","); }
+
+function irParaPagamento() {
+  const mi = document.querySelector('.menu-item[data-secao="conta"]');
+  if (mi) mi.click();
+  setTimeout(() => {
+    const c = $("#pagamento-card");
+    if (c) { c.classList.remove("hidden"); c.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }, 450);
+}
+function mostrarOfertaVip(msg) {
+  if (typeof toast === "function") toast(msg || "Suas rodadas gratuitas acabaram. Ative o VIP para acesso ilimitado.");
+  irParaPagamento();
+}
+
+async function carregarPagamentos(conta) {
+  const card = $("#pagamento-card"), admCard = $("#pag-admin-card");
+  if (!card) return;
+  if (conta && conta.admin) {            // admin vê o painel de pagamentos
+    card.classList.add("hidden");
+    if (admCard) { admCard.classList.remove("hidden"); carregarPagAdmin(); }
+    return;
+  }
+  if (admCard) admCard.classList.add("hidden");
+  try {
+    const d = await api("/api/mp/info");
+    const p = d.plano || {};
+    $("#pag-de").textContent = "R$ " + reais(p.preco_de || 99.9);
+    $("#pag-por").textContent = "R$ " + reais(p.preco || 49.9);
+    $("#pag-promo").textContent = p.promo || "";
+    $("#pag-beneficios").innerHTML = (p.beneficios || []).map((b) => "<li>✅ " + esc(b) + "</li>").join("");
+    renderPagStatus(d);
+    card.classList.remove("hidden");
+  } catch (e) { card.classList.add("hidden"); }
+}
+
+function renderPagStatus(d) {
+  const st = $("#pag-status"), acoes = $("#pag-acoes");
+  if (d.vip) {
+    st.className = "pag-status ok";
+    st.innerHTML = "⭐ <b>VIP ativo</b> — você já tem acesso ilimitado. Obrigado! 🚀";
+    acoes.classList.add("hidden"); $("#pag-pix-area").classList.add("hidden");
+    return;
+  }
+  if (!d.mp_ok) {
+    st.className = "pag-status";
+    st.innerHTML = "⚙️ O pagamento automático ainda está sendo configurado. Fale com o suporte para virar VIP.";
+    acoes.classList.add("hidden");
+    return;
+  }
+  acoes.classList.remove("hidden");
+  const pg = d.pagamento;
+  if (pg && pg.status === "pending") {
+    st.className = "pag-status pend";
+    st.innerHTML = "⏳ <b>Aguardando pagamento.</b> Assim que o Mercado Pago confirmar, seu VIP é liberado automaticamente.";
+  } else if (pg && (pg.status === "rejected" || pg.status === "cancelled")) {
+    st.className = "pag-status err";
+    st.innerHTML = "❌ <b>Pagamento recusado.</b> Tente novamente ou use outra forma de pagamento.";
+  } else {
+    st.className = "pag-status";
+    st.innerHTML = "🎟️ Você está no plano <b>grátis</b>. Ative o VIP para rodadas ilimitadas.";
+  }
+}
+
+async function gerarPix() {
+  const msg = $("#pag-msg"); msg.className = "pag-msg"; msg.textContent = "Gerando seu Pix…";
+  $("#btn-pix").disabled = true;
+  try {
+    const r = await api("/api/mp/pix", { method: "POST", body: JSON.stringify({}) });
+    PAG_ID = r.id;
+    const img = $("#pag-qr");
+    if (r.qr_code_base64) { img.src = "data:image/png;base64," + r.qr_code_base64; img.style.display = "block"; }
+    else img.style.display = "none";
+    $("#pag-pix-codigo").value = r.pix_copia_cola || "";
+    $("#pag-pix-area").classList.remove("hidden");
+    msg.textContent = "";
+    $("#pag-pix-area").scrollIntoView({ behavior: "smooth", block: "center" });
+    iniciarPollPix();
+  } catch (e) { msg.className = "pag-msg erro"; msg.textContent = "⚠️ " + e.message; }
+  $("#btn-pix").disabled = false;
+}
+
+async function pagarCartao() {
+  const msg = $("#pag-msg"); msg.className = "pag-msg"; msg.textContent = "Abrindo o pagamento seguro do Mercado Pago…";
+  $("#btn-cartao").disabled = true;
+  try {
+    const r = await api("/api/mp/cartao", { method: "POST", body: JSON.stringify({}) });
+    if (r.checkout_url) { window.location.href = r.checkout_url; }
+    else { msg.className = "pag-msg erro"; msg.textContent = "Não consegui abrir o checkout. Tente o Pix."; }
+  } catch (e) { msg.className = "pag-msg erro"; msg.textContent = "⚠️ " + e.message; }
+  $("#btn-cartao").disabled = false;
+}
+
+async function verificarPagamento(silencioso) {
+  if (!PAG_ID) return;
+  const msg = $("#pag-msg");
+  if (!silencioso) { msg.className = "pag-msg"; msg.textContent = "Verificando seu pagamento…"; }
+  try {
+    const r = await api("/api/mp/verificar", { method: "POST", body: JSON.stringify({ id: PAG_ID }) });
+    if (r.vip) {
+      pararPollPix();
+      msg.className = "pag-msg ok";
+      msg.innerHTML = "✅ <b>Pagamento confirmado!</b> Seu plano VIP foi ativado com sucesso. Atualizando…";
+      VIP = true; localStorage.setItem("vip", "1");
+      setTimeout(() => location.reload(), 1600);
+    } else if (r.status === "rejected" || r.status === "cancelled") {
+      pararPollPix();
+      msg.className = "pag-msg erro";
+      msg.textContent = "❌ Não conseguimos confirmar seu pagamento. Verifique os dados ou tente outra forma.";
+    } else if (!silencioso) {
+      msg.className = "pag-msg pend";
+      msg.textContent = "⏳ Seu pagamento ainda está pendente. Assim que o Mercado Pago confirmar, o VIP é liberado automaticamente.";
+    }
+  } catch (e) { if (!silencioso) { msg.className = "pag-msg erro"; msg.textContent = "⚠️ " + e.message; } }
+}
+function iniciarPollPix() { pararPollPix(); PAG_POLL_N = 0; PAG_POLL = setInterval(() => { PAG_POLL_N++; if (PAG_POLL_N > 50) { pararPollPix(); return; } verificarPagamento(true); }, 6000); }
+function pararPollPix() { if (PAG_POLL) { clearInterval(PAG_POLL); PAG_POLL = null; } }
+
+async function carregarPagAdmin() {
+  const cont = $("#pag-admin-lista"); cont.innerHTML = '<div class="vazio">Carregando…</div>';
+  try {
+    const d = await api("/api/mp/admin/pagamentos");
+    const ps = d.pagamentos || [];
+    if (!ps.length) { cont.innerHTML = '<div class="vazio">Nenhum pagamento ainda.</div>'; return; }
+    cont.innerHTML = '<table class="pag-tab"><thead><tr><th>Cliente</th><th>Valor</th><th>Forma</th><th>Status</th><th>Data</th><th>ID Mercado Pago</th></tr></thead><tbody>' +
+      ps.map((p) => '<tr><td>' + esc(p.usuario || "") + '</td><td>R$ ' + reais(p.amount) + '</td><td>' + esc(p.payment_method || "") + '</td><td>' + pagStatusTxt(p.status, p.vip_liberado) + '</td><td>' + esc(p.paid_at || p.created_at || "") + '</td><td class="pag-mono">' + esc(p.provider_payment_id || "") + '</td></tr>').join("") +
+      '</tbody></table>';
+  } catch (e) { cont.innerHTML = '<div class="vazio">Erro: ' + esc(e.message) + "</div>"; }
+}
+function pagStatusTxt(s, lib) {
+  if (s === "approved") return lib ? "✅ aprovado · VIP" : "✅ aprovado";
+  if (s === "pending") return "⏳ pendente";
+  if (s === "rejected") return "❌ recusado";
+  if (s === "cancelled") return "🚫 cancelado";
+  return s || "—";
+}
+
+if ($("#btn-pix")) $("#btn-pix").addEventListener("click", gerarPix);
+if ($("#btn-cartao")) $("#btn-cartao").addEventListener("click", pagarCartao);
+if ($("#btn-verificar")) $("#btn-verificar").addEventListener("click", () => verificarPagamento(false));
+if ($("#btn-copiar-pix")) $("#btn-copiar-pix").addEventListener("click", () => {
+  const t = $("#pag-pix-codigo"); t.select();
+  try { navigator.clipboard.writeText(t.value); } catch (e) { try { document.execCommand("copy"); } catch (_) {} }
+  const m = $("#pag-msg"); m.className = "pag-msg ok"; m.textContent = "📋 Código Pix copiado! Cole no app do seu banco.";
+});
+if ($("#btn-liberar-vip")) $("#btn-liberar-vip").addEventListener("click", async () => {
+  const email = ($("#pag-admin-email").value || "").trim().toLowerCase();
+  const m = $("#pag-admin-msg");
+  if (!email) { m.className = "erro"; m.textContent = "Informe o e-mail do cliente."; return; }
+  try {
+    await api("/api/mp/admin/liberar", { method: "POST", body: JSON.stringify({ email }) });
+    m.className = "ok"; m.textContent = "✅ VIP liberado para " + email;
+    $("#pag-admin-email").value = ""; carregarPagAdmin();
+  } catch (e) { m.className = "erro"; m.textContent = "⚠️ " + e.message; }
+});
+// Retorno do Checkout Pro (cartão): ?vip=ok/pendente/falhou
+(function () {
+  const v = new URLSearchParams(location.search).get("vip");
+  if (!v) return;
+  window.addEventListener("load", () => setTimeout(() => {
+    if (typeof toast === "function") {
+      if (v === "ok") toast("✅ Pagamento recebido! Seu VIP libera automaticamente. Veja em Conta > Pagamentos.");
+      else if (v === "pendente") toast("⏳ Pagamento pendente. Assim que confirmar, o VIP é liberado.");
+      else toast("❌ Pagamento não concluído. Você pode tentar de novo em Conta > Pagamentos.");
+    }
+    history.replaceState(null, "", location.pathname);
+  }, 1200));
+})();
+
 $("#btn-trocar-senha").addEventListener("click", async () => {
   const atual = $("#conta-senha-atual").value, nova = $("#conta-senha-nova").value;
   const msg = $("#conta-senha-msg");

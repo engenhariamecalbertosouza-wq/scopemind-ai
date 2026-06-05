@@ -30,6 +30,44 @@ body {
 #cerebro-overlay { position: fixed; inset: 0; z-index: 9999; background: #06111F; }
 #cerebro-frame { width: 100%; height: 100%; border: 0; display: block; }
 
+/* ---- Pagamentos / Assinatura VIP ---- */
+.pag-titulo { margin: 0 0 4px; font-size: 20px; }
+.pag-sub { color: #9fb0c7; font-size: 13px; margin: 0 0 14px; }
+.pag-plano { background: rgba(53,194,255,.06); border: 1px solid rgba(53,194,255,.25); border-radius: 14px; padding: 14px 16px; }
+.pag-plano-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pag-plano-nome { font-size: 17px; font-weight: 800; }
+.pag-preco .pag-de { color: #8aa0bd; opacity: .8; margin-right: 6px; }
+.pag-preco b { font-size: 24px; color: #22C55E; }
+.pag-preco small { color: #9fb0c7; font-size: 12px; }
+.pag-promo { margin-top: 6px; font-size: 12.5px; font-weight: 700; color: #F59E0B; }
+.pag-beneficios { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; font-size: 13.5px; }
+.pag-status { margin: 14px 0; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.pag-status.ok { background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.4); }
+.pag-status.pend { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.4); }
+.pag-status.err { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.4); }
+.pag-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-pix, .btn-cartao { flex: 1; min-width: 150px; cursor: pointer; border: 0; border-radius: 12px; padding: 13px 16px; font: inherit; font-weight: 800; font-size: 15px; }
+.btn-pix { background: linear-gradient(90deg,#22C55E,#10b981); color: #04130b; }
+.btn-cartao { background: linear-gradient(90deg,#35C2FF,#2b8fff); color: #02121f; }
+.btn-pix:hover, .btn-cartao:hover { filter: brightness(1.08); }
+.btn-pix:disabled, .btn-cartao:disabled { opacity: .6; cursor: default; }
+.pag-pix { margin-top: 16px; text-align: center; }
+.pag-pix-tit { font-size: 13px; color: #9fb0c7; margin: 0 0 10px; }
+.pag-qr { width: 220px; height: 220px; max-width: 80%; background: #fff; border-radius: 12px; padding: 8px; display: block; margin: 0 auto 12px; }
+.pag-pix-codigo { width: 100%; box-sizing: border-box; resize: none; font-family: Consolas,monospace; font-size: 12px; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.25); color: #e5f0ff; }
+.pag-pix-btns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.pag-pix-btns button { flex: 1; min-width: 140px; }
+.pag-pix-aviso { font-size: 12px; color: #9fb0c7; margin-top: 10px; }
+.pag-msg { margin-top: 12px; font-size: 13.5px; min-height: 18px; }
+.pag-msg.ok { color: #22C55E; } .pag-msg.erro { color: #EF4444; } .pag-msg.pend { color: #F59E0B; }
+.pag-tab { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pag-tab th, .pag-tab td { text-align: left; padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.pag-tab th { color: #9fb0c7; font-weight: 700; }
+.pag-mono { font-family: Consolas,monospace; font-size: 11px; color: #9fb0c7; }
+.pag-admin-liberar { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
+.pag-admin-liberar h4 { margin: 0 0 8px; font-size: 14px; }
+.pag-admin-liberar input { width: 100%; box-sizing: border-box; padding: 9px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.25); color: #e5f0ff; }
+
 a.link { color: var(--verde); font-size: 13px; text-decoration: none; display: inline-block; margin: 2px 0 10px; }
 a.link:hover { text-decoration: underline; }
 

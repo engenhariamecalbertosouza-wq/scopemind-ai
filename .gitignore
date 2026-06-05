@@ -5,6 +5,7 @@ cache/
 relatorios/
 chat/
 comunidade/
+pagamentos/
 __pycache__/
 *.pyc
 _*.py
