@@ -40,10 +40,10 @@ Historico/Confrontos, Contexto Externo e Fator Humano (inclui estado psicologico
 jogadores-chave, ex.: um jogador abalado pode falhar em momentos decisivos), Risco e Incerteza (PODER
 DE VETO: muita incerteza => confianca baixa), Probabilidade/Cenarios, e Consenso Final.
 
-CALCULO DA CONFIANCA (de 60 a 90): comece em ~70 e ajuste para cima/baixo conforme escalacoes
+CALCULO DA CONFIANCA (de 70 a 90): comece em ~78 e ajuste para cima/baixo conforme escalacoes
 confirmadas, forma recente, estatisticas, odds, historico e tipo de competicao (amistoso e dados
-faltando reduzem). IMPORTANTE: o score MINIMO e 60 e o MAXIMO e 90 (nunca abaixo de 60, nunca acima de
-90, nem em jogos faceis). Rotulo: >=70 "Alta"; senao "Media". NUNCA use "Baixa" — sempre "Media" ou
+faltando reduzem). IMPORTANTE: o score MINIMO e 70 e o MAXIMO e 90 (nunca abaixo de 70, nunca acima de
+90, nem em jogos faceis). Rotulo: >=80 "Alta"; senao "Media". NUNCA use "Baixa" — sempre "Media" ou
 "Alta". (As ressalvas honestas vao em "confianca_motivos", mas o rotulo nunca e "Baixa".)
 
 SAIDA: responda SOMENTE com UM objeto JSON valido (sem texto antes/depois, sem ``` ). Em PORTUGUES do
@@ -51,7 +51,7 @@ Brasil, frases CURTAS e diretas (pouco texto, muita interpretacao). Esquema EXAT
 
 {
   "confianca": "Media|Alta",
-  "confianca_score": <inteiro de 60 a 90>,
+  "confianca_score": <inteiro de 70 a 90>,
   "confianca_motivos": [<2 a 5 frases curtas explicando os pontos de atencao/forca>],
   "prognostico": "Casa|Empate|Fora",
   "favorito": "<nome EXATO do time favorito, ou 'Empate'>",
@@ -204,14 +204,14 @@ def _saneia(dados):
     for k in ("prob_casa", "prob_empate", "prob_fora", "confianca_score"):
         if k in dados:
             dados[k] = _int(dados[k])
-    # Confianca: PISO 60, TETO 90, e o rotulo NUNCA e "Baixa" (decisao do dono:
-    # nao descredibilizar o sistema). 60-69 vira "Média", 70-90 vira "Alta".
+    # Confianca: PISO 70, TETO 90, e o rotulo NUNCA e "Baixa" (decisao do dono:
+    # nao descredibilizar o sistema). 70-79 vira "Média", 80-90 vira "Alta".
     sc = dados.get("confianca_score")
     if not sc:
-        sc = {"Alta": 82, "Média": 68, "Baixa": 64}.get(_norm_conf(dados.get("confianca")), 70)
-    sc = max(60, min(90, int(sc)))
+        sc = {"Alta": 85, "Média": 75, "Baixa": 72}.get(_norm_conf(dados.get("confianca")), 78)
+    sc = max(70, min(90, int(sc)))
     dados["confianca_score"] = sc
-    dados["confianca"] = "Alta" if sc >= 70 else "Média"
+    dados["confianca"] = "Alta" if sc >= 80 else "Média"
     for lista in ("confianca_motivos", "placares_alt", "artilheiros", "leitura", "forcas_casa", "forcas_fora"):
         if not isinstance(dados.get(lista), list):
             dados[lista] = []

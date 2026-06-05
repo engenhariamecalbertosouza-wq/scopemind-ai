@@ -869,6 +869,14 @@ async function carregarPlacar() {
     itens.forEach((it) => cont.appendChild(cardPlacar(it)));
   } catch (err) { cont.innerHTML = '<div class="vazio">Erro: ' + err.message + "</div>"; }
 }
+function palpitePlacar(it) {
+  // Converte Casa/Fora/Empate no NOME do time (ou "Empate")
+  const p = (it.prognostico || "").toString().trim().toLowerCase();
+  if (p === "casa") return it.home || "Casa";
+  if (p === "fora") return it.away || "Fora";
+  if (p === "empate") return "Empate";
+  return it.prognostico || "—";
+}
 function cardPlacar(it) {
   const div = document.createElement("div");
   div.className = "cartao-jogo";
@@ -878,7 +886,7 @@ function cardPlacar(it) {
   div.innerHTML =
     '<div class="cj-liga"><span>' + esc(nomeLiga(it.league || "")) + '</span><span class="pais">' + esc(it.country_pt || "") + "</span></div>" +
     '<div class="cj-times"><div class="cj-time"><span>' + esc(it.home) + '</span></div><span class="cj-vs">VS</span><div class="cj-time fora"><span>' + esc(it.away) + "</span></div></div>" +
-    '<div class="cj-rodape"><span>Palpite: <b>' + esc(it.prognostico || "—") + "</b>" + (it.placar ? ' · Real: <b>' + esc(it.placar) + "</b>" : "") + "</span>" +
+    '<div class="cj-rodape"><span>Palpite: <b>' + esc(palpitePlacar(it)) + "</b>" + (it.placar ? ' · Real: <b>' + esc(it.placar) + "</b>" : "") + "</span>" +
       '<span style="color:' + m[1] + ';font-weight:700">' + m[0] + "</span></div>";
   return div;
 }
