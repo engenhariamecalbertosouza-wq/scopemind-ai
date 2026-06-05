@@ -945,3 +945,59 @@ table.com-rank tr:hover td { background: rgba(255,255,255,.03); }
 .pa-detalhes-corpo li { margin: 3px 0; color: #d7e0ee; }
 .pa-detalhes-corpo strong { color: var(--texto); }
 @media (max-width: 560px) { .pa-cols { grid-template-columns: 1fr; } .pa-dest-grid { gap: 22px; } }
+
+/* ============================================================
+   RESPONSIVO / CELULAR  (telas até 600px)
+   ============================================================ */
+@media (max-width: 600px) {
+  /* menos margem lateral em tudo -> ganha largura de conteúdo */
+  main { padding: 10px 14px 70px; }
+  .topo { padding: 11px 14px; }
+  .abas, .barra-ferramentas, .tabela-topo { padding-left: 14px; padding-right: 14px; }
+
+  /* MENU PRINCIPAL: rola na horizontal (todas as abas acessíveis com o dedo,
+     inclusive Conta/Chat/Comunidade que antes ficavam cortadas) */
+  .menu-principal {
+    padding: 10px 14px 0; gap: 2px;
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .menu-principal::-webkit-scrollbar { display: none; }
+  .menu-item { flex: 0 0 auto; white-space: nowrap; font-size: 13px; padding: 9px 9px; }
+
+  /* cabeçalho mais compacto */
+  .logo-mini { font-size: 16px; }
+  .topo-esq { gap: 8px; }
+  .badge { font-size: 10px; padding: 3px 8px; }
+  .btn-icone { padding: 7px 10px; margin-left: 6px; font-size: 13px; }
+
+  /* abas (Hoje/Amanhã) e filtros menores */
+  .aba { padding: 8px 15px; font-size: 13px; }
+
+  /* cartões de jogo: sempre 1 por linha */
+  .grade-jogos { grid-template-columns: 1fr; }
+
+  /* modais ocupam quase a tela toda, com folga nas bordas */
+  .modal { padding: 16px 10px; }
+  .modal-conteudo { padding: 20px 16px; }
+  .modal-conteudo.grande { max-width: 100%; }
+
+  /* pagamento: título e preço um tico menores */
+  .pag-titulo { font-size: 18px; }
+  .pag-preco b { font-size: 22px; }
+
+  /* tabelas com fonte menor (já rolam na horizontal onde precisa) */
+  .pag-tab, .com-rank { font-size: 12px; }
+  .pag-tab th, .pag-tab td { padding: 6px 6px; }
+
+  /* botões flutuantes não colam na borda */
+  .wpp-flutuante { right: 12px; bottom: 12px; }
+}
+
+/* telas BEM estreitas (≤ 380px) */
+@media (max-width: 380px) {
+  .menu-item { font-size: 12px; padding: 9px 7px; }
+  .pag-acoes { flex-direction: column; }     /* Pix e Cartão empilham */
+  .btn-pix, .btn-cartao { min-width: 0; width: 100%; }
+  .logo-mini { font-size: 15px; }
+}

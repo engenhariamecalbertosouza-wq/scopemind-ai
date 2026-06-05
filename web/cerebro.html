@@ -160,6 +160,18 @@
 
   @media (max-width:1080px){ #groups{display:none} #metrics{left:18px} }
   @media (max-width:920px){ #feed{display:none} #metrics{right:18px} .h-sub{display:none} }
+  /* CELULAR: tela limpa = cérebro + botão ENTRAR cheio embaixo */
+  @media (max-width:600px){
+    #metrics{ left:12px; right:12px; bottom:12px; gap:6px; }
+    #metrics .metric{ display:none; }              /* esconde os numeros (decorativos) no celular */
+    .metric-btn{ flex:1 1 100%; padding:14px; font-size:14px; letter-spacing:1.5px; }
+    .metric-btn b{ font-size:15px; }
+    #header{ padding:10px 14px; }
+    .h-title{ font-size:16px; } .h-kicker{ font-size:9px; letter-spacing:2px; }
+    .h-mon{ font-size:11px; } .chip{ font-size:10px; padding:4px 8px; }
+    .logo-mark{ width:28px; height:28px; }
+    .h-right{ gap:4px; }
+  }
 </style>
 </head>
 <body>
