@@ -198,6 +198,7 @@ async function entrarNoApp() {
   aplicarPapel();
   const nm = (ROLE === "admin") ? "Admin" : (NOME || "");
   if ($("#saudacao")) $("#saudacao").textContent = nm ? ("👋 Bem-vindo, " + nm) : "";
+  atualizarMenuUsuario();
   $("#btn-alertas").classList.toggle("ativo", ALERTAS_ON);
   preencherDatasAbas();
   await atualizarStatus();
@@ -224,6 +225,15 @@ async function atualizarStatus() {
 // ===================== Menu lateral (gaveta no celular) =====================
 function abrirMenu() { $("#menu").classList.add("aberto"); $("#menu-overlay").classList.add("aberto"); }
 function fecharMenu() { $("#menu").classList.remove("aberto"); $("#menu-overlay").classList.remove("aberto"); }
+function atualizarMenuUsuario() {
+  const nome = (ROLE === "admin") ? "Admin" : (NOME || "Você");
+  const av = $("#mu-avatar"); if (av) av.textContent = (nome.trim().charAt(0) || "?").toUpperCase();
+  const nm = $("#mu-nome"); if (nm) nm.textContent = nome;
+  const st = $("#mu-status"); if (!st) return;
+  if (ROLE === "admin") { st.textContent = "👑 Administrador"; st.className = "mu-status adm"; }
+  else if (VIP) { st.textContent = "⭐ VIP ativo — ilimitado"; st.className = "mu-status vip"; }
+  else { st.textContent = "🎟️ Plano grátis"; st.className = "mu-status free"; }
+}
 if ($("#btn-menu")) $("#btn-menu").addEventListener("click", abrirMenu);
 if ($("#btn-menu-fechar")) $("#btn-menu-fechar").addEventListener("click", fecharMenu);
 if ($("#menu-overlay")) $("#menu-overlay").addEventListener("click", fecharMenu);
