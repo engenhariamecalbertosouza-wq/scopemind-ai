@@ -17,6 +17,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", "").strip() or BASE_DIR
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 
+# Fuso do Brasil (America/Sao_Paulo = UTC-3, sem horario de verao desde 2019).
+FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
+def _hoje_brasil():
+    """Data de HOJE no Brasil. CRITICO: a hospedagem (Render) roda em UTC, e a
+    noite no Brasil ja e 'amanha' em UTC -> sem isso a aba Hoje mostra os jogos
+    do dia seguinte. Usar SEMPRE isto em vez de datetime.date.today()."""
+    return datetime.datetime.now(FUSO_BR).date()
+
 STATUS_PT = {
     "NS": "A iniciar", "TBD": "A confirmar",
     "1H": "1o tempo", "HT": "Intervalo", "2H": "2o tempo",
@@ -189,7 +197,7 @@ def _fixtures_do_dia(data_iso, chave):
     diário de consultas atingido). REGRA: quando a cota acaba ou a rede falha,
     NUNCA sobrescreve o cache bom — devolve os últimos jogos que já tinha."""
     cache = _cache_path("fixtures_%s.json" % data_iso)
-    hoje_iso = datetime.date.today().isoformat()
+    hoje_iso = _hoje_brasil().isoformat()
     cache_jogos, cache_status = None, ""
     if os.path.exists(cache):
         try:
@@ -301,7 +309,7 @@ def _fixtures_live(chave):
                     return json.load(f)
             except Exception:
                 pass
-    hoje = datetime.date.today().isoformat()
+    hoje = _hoje_brasil().isoformat()
     dados = _api_get("/fixtures", {"date": hoje, "timezone": "America/Sao_Paulo"}, chave)
     jogos = [_normalizar(item) for item in dados.get("response", [])]
     try:
@@ -313,7 +321,7 @@ def _fixtures_live(chave):
 
 
 def _intervalo_datas(periodo):
-    hoje = datetime.date.today()
+    hoje = _hoje_brasil()
     if periodo == "ontem":
         return [hoje - datetime.timedelta(days=1)]
     if periodo == "amanha":
@@ -563,7 +571,7 @@ def _ex(dia, hora, liga, pais, casa, fora):
 
 
 def _demo(periodo):
-    hoje = datetime.date.today()
+    hoje = _hoje_brasil()
     d1 = hoje + datetime.timedelta(days=1)
     d2 = hoje + datetime.timedelta(days=2)
     d3 = hoje + datetime.timedelta(days=3)

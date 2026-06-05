@@ -204,6 +204,21 @@ def _vip_dias(cfg):
         return 30
 
 
+# Anti forca-bruta no login: conta falhas por IP e bloqueia temporariamente.
+_LOGIN_FAILS = {}   # ip -> (qtd_falhas, inicio_da_janela)
+_LOGIN_LOCK = {}    # ip -> bloqueado_ate (timestamp)
+def _registrar_falha_login(ip):
+    agora = time.time()
+    qtd, t0 = _LOGIN_FAILS.get(ip, (0, agora))
+    if agora - t0 > 600:      # janela de 10 min
+        qtd, t0 = 0, agora
+    qtd += 1
+    _LOGIN_FAILS[ip] = (qtd, t0)
+    if qtd >= 15:             # 15 falhas em 10 min -> bloqueia esse IP por 5 min
+        _LOGIN_LOCK[ip] = agora + 300
+        _LOGIN_FAILS[ip] = (0, agora)
+
+
 # ----------------------------------------------------------------------------
 # Servidor HTTP
 # ----------------------------------------------------------------------------
@@ -222,9 +237,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def _corpo_json(self):
         try:
-            n = int(self.headers.get("Content-Length", 0))
-            if n <= 0:
-                return {}
+            n = int(self.headers.get("Content-Length", 0) or 0)
+        except Exception:
+            n = 0
+        if n <= 0:
+            return {}
+        if n > 262144:   # 256 KB: corpo legitimo e pequeno; evita DoS de memoria
+            self.close_connection = True
+            return {}
+        try:
             return json.loads(self.rfile.read(n).decode("utf-8"))
         except Exception:
             return {}
@@ -240,6 +261,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def _token(self):
         return self.headers.get("X-Auth-Token", "")
+
+    def _login_ip(self):
+        # Na Render o IP real vem no X-Forwarded-For (o servidor ve so o proxy).
+        xff = self.headers.get("X-Forwarded-For", "")
+        if xff:
+            return xff.split(",")[0].strip()
+        return self.client_address[0]
 
     def _arquivo(self, caminho_rel):
         caminho = os.path.join(WEB_DIR, caminho_rel)
@@ -455,6 +483,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _login(self):
         cfg = carregar_config()
+        ip = self._login_ip()
+        if _LOGIN_LOCK.get(ip, 0) > time.time():
+            self._json({"erro": "Muitas tentativas de login. Aguarde alguns minutos e tente de novo."}, 429)
+            return
         dados = self._corpo_json()
         entrada = (dados.get("usuario") or "").strip()
         senha = (dados.get("senha") or "").strip()  # ignora espacos acidentais (autofill/copiar-colar)
@@ -462,6 +494,7 @@ class Handler(BaseHTTPRequestHandler):
         chave = entrada if entrada in usuarios else entrada.lower()
         u = usuarios.get(chave)
         if u and hmac.compare_digest(u["hash"], _hash_senha(senha, u["salt"])):
+            _LOGIN_FAILS.pop(ip, None); _LOGIN_LOCK.pop(ip, None)   # zera no acerto
             role = u.get("role", "admin")
             resp = {"ok": True, "token": gerar_token(cfg, chave), "usuario": u.get("nome", chave), "role": role,
                     "vip": _vip_valido(u)}
@@ -471,6 +504,7 @@ class Handler(BaseHTTPRequestHandler):
                     resp["analises_restantes"] = max(0, _limite_gratis(cfg) - len(u.get("jogos_abertos", [])))
             self._json(resp)
         else:
+            _registrar_falha_login(ip)
             self._json({"ok": False, "erro": "Usuário ou senha incorretos."}, 401)
 
     def _cadastrar(self):
@@ -554,9 +588,10 @@ class Handler(BaseHTTPRequestHandler):
         limite_gratis = _limite_gratis(cfg)
 
         partida = self._corpo_json()
-        import datetime as _dt
         _data = partida.get("data", "")
-        if ("encerrad" in (partida.get("status", "") or "").lower()) or (_data and _data < _dt.date.today().isoformat()):
+        # Usa a data do BRASIL (nao date.today() do servidor, que em UTC ja virou
+        # 'amanha' a noite e bloquearia, errado, a analise dos jogos de hoje).
+        if ("encerrad" in (partida.get("status", "") or "").lower()) or (_data and _data < dados_futebol._hoje_brasil().isoformat()):
             self._json({"erro": "Jogo ja encerrado ou passado — analise com IA indisponivel (economia)."}, 400)
             return
 
@@ -625,8 +660,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _excluir_relatorio(self):
         cfg = carregar_config()
-        if not token_valido(cfg, self._token()):
-            self._json({"erro": "Nao autorizado."}, 401)
+        usuario = usuario_do_token(cfg, self._token())
+        u = cfg.get("usuarios", {}).get(usuario, {})
+        if not usuario or not _eh_admin(u):   # excluir e destrutivo: SO admin
+            self._json({"erro": "Apenas o administrador pode excluir relatorios."}, 403)
             return
         chave = self._corpo_json().get("chave", "")
         self._json({"ok": relatorios.excluir(chave)})

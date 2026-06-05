@@ -14,6 +14,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", "").strip() or BASE_DIR
 DIR = os.path.join(DATA_DIR, "relatorios")
 
+# Hoje no fuso do Brasil (UTC-3). A hospedagem roda em UTC; sem isto, a noite
+# no Brasil o servidor ja acha que e "amanha" e marca/seleciona datas errado.
+_FUSO_BR = datetime.timezone(datetime.timedelta(hours=-3))
+def _hoje_brasil():
+    return datetime.datetime.now(_FUSO_BR).date()
+
 
 def _garante():
     if not os.path.exists(DIR):
@@ -41,7 +47,7 @@ def chave_do_jogo(partida):
 def _desatualizado(reg):
     """True se o jogo ainda nao aconteceu e a analise tem mais de 12h."""
     data = reg.get("data") or ""
-    hoje = datetime.date.today().isoformat()
+    hoje = _hoje_brasil().isoformat()
     if data and data < hoje:
         return False  # jogo ja passou: analise nao precisa atualizar
     ts = reg.get("analisado_ts") or 0
@@ -129,7 +135,7 @@ def para_reanalisar(dias=2):
     """Relatorios de jogos que ainda vao acontecer (hoje ate hoje+dias),
     para a reanalise automatica (quando o usuario habilita)."""
     _garante()
-    hoje = datetime.date.today()
+    hoje = _hoje_brasil()
     hoje_iso = hoje.isoformat()
     limite = (hoje + datetime.timedelta(days=dias)).isoformat()
     out = []
