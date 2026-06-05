@@ -1,289 +1,315 @@
 # 📘 CONTEXTO DO PROJETO — ScopeMind AI
 
 > **Para a IA que for continuar este projeto:** leia este arquivo inteiro antes de mexer em qualquer coisa.
-> O dono se chama **Alberto**, **não é programador** e fala **português do Brasil** — explique sempre de forma
-> simples e em PT-BR. Antes de editar `server.py` ou `web/app.js`, **sempre dê Read no trecho exato** (a
-> formatação real às vezes difere do esperado e o Edit falha). Teste cada mudança antes de declarar pronto.
+> O dono se chama **Alberto** (Luiz Alberto Siqueira de Souza), **não é programador** e fala **português do
+> Brasil** — explique sempre de forma simples, em PT-BR, com analogias quando ajudar.
+> **Regras de ouro para não quebrar:** (1) **sempre dê Read no trecho exato antes de Edit** em `server.py`/
+> `app.js` (a formatação real difere às vezes e o Edit falha); (2) **sempre valide o `web/app.js` no navegador
+> ANTES de publicar** (um erro de sintaxe derruba o front INTEIRO — já aconteceu; ver seção 11); (3) o **custo
+> de IA importa muito** — análise só roda quando manda; (4) **economia de cota da API-Football** (plano grátis).
+
+*Atualizado em 2026-06-05, no fim de uma longa sessão que levou o projeto do "app local" até "no ar com domínio próprio".*
 
 ---
 
 ## 1. VISÃO GERAL
-**ScopeMind AI** — "Central de Inteligência Esportiva": um app de **análise de futebol** com **múltiplos agentes de IA**.
-Slogan: *"Análise esportiva avançada com múltiplos agentes de inteligência artificial."*
+**ScopeMind AI** — "Central de Inteligência Esportiva": app web de **análise de futebol** com **múltiplos agentes
+de IA**. Slogan: *"Análise esportiva avançada com múltiplos agentes de inteligência artificial."*
 
-- Mostra os jogos (hoje/amanhã, ao vivo, encerrados), tabelas, e gera **análises profundas** de uma partida
-  usando **10 agentes de IA "doutores"** que debatem e chegam a uma conclusão com **grau de confiança**.
-- Regra de ouro (inegociável): **é análise PROBABILÍSTICA, nunca garantia de resultado.** Nunca prometer acerto.
-- Roda **localmente** no PC do Alberto (Windows). Está **preparado para hospedar** (Render), mas **ainda não hospedado**.
+- Mostra jogos (hoje/amanhã, ao vivo, encerrados), gera **análises profundas** de uma partida (10 agentes
+  "doutores" que debatem e concluem com **grau de confiança**), tem **chat**, **comunidade de palpites (XP)**,
+  **cadastro de clientes**, **VIP** e **painel admin**.
+- **Regra de ouro (inegociável):** é análise **PROBABILÍSTICA, nunca garantia**. Nunca prometer acerto/"aposta segura".
+- **NO AR EM PRODUÇÃO:** **https://scopemind-ai.com.br** (domínio próprio, HTTPS) e também
+  **https://scopemind-ai.onrender.com** (endereço da Render, sempre funciona). Roda na **Render** (plano Starter +
+  disco permanente). Também roda **localmente** no PC do Alberto (Windows) com duplo clique no `INICIAR.bat`.
+- **Marketing/copy do produto:** fala em **"100 agentes de IA especialistas"** (decisão explícita do dono).
 
 ---
 
 ## 2. TECNOLOGIAS
-- **Backend:** Python 3.12 usando **somente a biblioteca padrão** (`http.server`, `urllib`, `json`, `hmac`,
-  `hashlib`, `secrets`, `re`, `datetime`). **Sem dependências de runtime** (não precisa `pip install` para rodar).
-  - (Exceção: o **Pillow** foi usado **uma vez, localmente**, só para gerar os ícones do PWA. Não é usado em runtime.)
+- **Backend:** Python 3.12 usando **só a biblioteca padrão** (`http.server`, `urllib`, `json`, `hmac`, `hashlib`,
+  `secrets`, `re`, `csv`, `io`, `threading`, `datetime`, `unicodedata`). **Sem dependências de runtime** (sem `pip`).
+  - (Exceção histórica: Pillow usado **uma vez, local**, só pra gerar ícones do PWA. Não é usado em runtime.)
 - **Frontend:** HTML + CSS + JavaScript **puro** (sem framework). SPA simples servida pelo próprio servidor Python.
 - **APIs externas:**
-  - **Anthropic (Claude)** → cérebro dos agentes. `POST https://api.anthropic.com/v1/messages`
-    (headers `x-api-key`, `anthropic-version: 2023-06-01`). Modelo padrão `claude-opus-4-8`.
-  - **API-Football (api-sports.io)** → dados dos jogos. `https://v3.football.api-sports.io`
-    (header `x-apisports-key`, parâmetro `timezone=America/Sao_Paulo`). **Plano gratuito** (ver limites na seção 8).
-  - **flagcdn.com** → imagens das bandeiras (`https://flagcdn.com/w80/{iso}.png`).
-- **Python instalado em:** `C:\Users\Alberto Souza\AppData\Local\Programs\Python\Python312\python.exe`
-  (instalado via `winget`).
+  - **Anthropic (Claude)** → cérebro dos agentes. `POST https://api.anthropic.com/v1/messages` (headers `x-api-key`,
+    `anthropic-version: 2023-06-01`). Modelo padrão `claude-opus-4-8`; **em produção o dono trocou para
+    `claude-sonnet-4-6`** (mais barato) pela engrenagem. Trocável também por Haiku.
+  - **API-Football (api-sports.io)** → dados dos jogos. `https://v3.football.api-sports.io` (header
+    `x-apisports-key`, parâmetro `timezone=America/Sao_Paulo`). **Plano grátis** (ver limites na seção 8).
+  - **flagcdn.com** → bandeiras (`https://flagcdn.com/w80/{iso}.png`).
+- **Python local:** `C:\Users\Alberto Souza\AppData\Local\Programs\Python\Python312\python.exe` (via winget).
+- **Hospedagem:** **Render** (Web Service Starter ~US$7/mês + **disco permanente** /var/data ~US$0,25/GB/mês).
+- **Código:** GitHub `engenhariamecalbertosouza-wq/scopemind-ai` (branch `main`). Deploy automático: `git push` → Render republica.
 
 ---
 
-## 3. COMO RODAR (local)
-1. Pasta do projeto: `C:\Users\Alberto Souza\Desktop\AnaliseFutebol`
-2. Dois cliques em **`INICIAR.bat`** → sobe o servidor e abre o navegador em **http://localhost:8765**
-3. Login do dono: **admin / admin** (no campo de e-mail, digitar `admin`). Clientes entram com e-mail.
-4. **Não fechar a janela preta** enquanto usar (é o servidor).
-- Porta: **8765**. Local faz bind em `127.0.0.1`; hospedado usa `0.0.0.0` + `PORT` do ambiente.
-- Para reiniciar o servidor em testes: **matar o python antigo antes** (senão "porta em uso").
+## 3. COMO RODAR / ATUALIZAR
+### Local (PC do Alberto)
+1. Pasta: `C:\Users\Alberto Souza\Desktop\AnaliseFutebol`
+2. Duplo clique em **`INICIAR.bat`** → sobe o servidor e abre http://localhost:8765
+3. Login admin local: **admin / admin** (no campo de e-mail digitar `admin`). Não fechar a janela preta.
+4. Porta 8765. Para reiniciar em testes: **matar o python antigo antes** (senão "porta em uso").
+
+### Atualizar o site no ar
+- Editar local → `git push origin main` → a Render **republica sozinha** (~2 min; um **502 breve** durante o
+  reinício é NORMAL, com disco não há zero-downtime). Pedir ao Alberto **Ctrl+Shift+R** (ou aba anônima) pra o
+  navegador pegar a versão nova.
+
+### Testar sem gastar IA (no PC)
+- Compilar: `python -c "import server, agentes, dados_futebol, relatorios, chat, comunidade; print('OK')"`
+- Servidor de teste em outra porta (não atrapalha a 8765 e não polui o config real): `PORT=8799 python server.py`
+  ⚠️ **Faça backup do `config.json` antes** de testes que cadastram usuários, e **restaure depois**; remova as
+  pastas de dados geradas no teste (`chat/`, `comunidade/`) e os scripts `_*.py` temporários (estão no `.gitignore`).
+- Testar endpoints com `urllib`/`curl` (login admin → token → chamar rotas). Login admin local = `admin/admin`.
 
 ---
 
 ## 4. ESTRUTURA DE ARQUIVOS
 ```
 AnaliseFutebol/
-├─ server.py            # Servidor HTTP + rotas/API + autenticação/usuários + cota + placar + agendador 6h
-├─ agentes.py           # Motor dos 10 agentes (chama Claude API); prompt; extrai CONFIANCA e PROGNOSTICO
-├─ dados_futebol.py     # Cliente API-Football; normalização; tradução PT; filtros; tabela; ao vivo; cache
-├─ relatorios.py        # Salvar/listar/obter/excluir análises; todos(); para_reanalisar(); chave_do_jogo()
+├─ server.py            # Servidor HTTP + rotas/API + auth/usuários + cota + placar + agendador 6h + conta/VIP
+├─ agentes.py           # Motor dos agentes (Claude). Devolve JSON ESTRUTURADO p/ o painel visual + fallback texto
+├─ dados_futebol.py     # Cliente API-Football; normalização; tradução PT; filtros; cache; tratamento de cota
+├─ relatorios.py        # Salvar/listar/obter/excluir análises (inclui o campo "dados" estruturado)
 ├─ chat.py              # Motor do Chat ao vivo (mensagens em chat/mensagens.json; denúncias; Lock; filtros)
-├─ comunidade.py        # Motor do Placar da Comunidade (palpites, XP, ranking, badges; modelo recompute)
+├─ comunidade.py        # Motor do Placar da Comunidade (palpites, XP, ranking, badges; modelo "recompute")
 ├─ config.json          # Chaves de API, usuários, secret  ⚠️ TEM SEGREDOS — NÃO vai pro Git (.gitignore)
 ├─ web/
 │  ├─ index.html        # Telas (login/cadastro + app com todos os módulos + modais)
-│  ├─ styles.css        # Estilo (tema escuro, verde/azul)
-│  ├─ app.js            # Toda a lógica do front (fetch, render, favoritos, alertas, etc.)
-│  ├─ manifest.json     # PWA (app instalável)
-│  ├─ sw.js             # Service worker (PWA, network-first, não cacheia /api/)
-│  ├─ icon-192.png      # Ícone PWA (luneta/mira) — gerado com Pillow
-│  └─ icon-512.png      # Ícone PWA
+│  ├─ styles.css        # Estilo (tema escuro; verde/azul/ciano/dourado; cards; .pa-* do painel de análise)
+│  ├─ app.js            # Toda a lógica do front (fetch, render, favoritos, alertas, chat, comunidade, conta, painel)
+│  ├─ manifest.json     # PWA (instalável)
+│  ├─ sw.js             # Service worker (PWA; network-first; CACHE="scopemind-v3"; limpa cache antigo no activate)
+│  ├─ icon-192.png / icon-512.png   # Ícones PWA
 ├─ imagens/
-│  ├─ Logo.png          # Logo (lockup com nome + slogan) — usada na tela de login
-│  └─ background.png    # Fundo do app (central de IA) — servida via rota /imagens/
-├─ cache/               # (gerado) cache dos fixtures por data (atômico)
-├─ relatorios/          # (gerado) 1 .json por análise salva
-├─ chat/                # (gerado) mensagens.json do Chat ao vivo (no .gitignore)
-├─ comunidade/          # (gerado) palpites.json + admin.json do Placar da Comunidade (no .gitignore)
-├─ INICIAR.bat          # Atalho que sobe o servidor
+│  ├─ Logo.png          # Logo (usada na tela de login)
+│  ├─ background.png     # Fundo do app (central de IA); também usado na tela do cronômetro
+│  └─ Entrada.png        # (asset extra)
+├─ cache/               # (gerado) cache dos fixtures por data (atômico) — em DATA_DIR (.gitignore)
+├─ relatorios/          # (gerado) 1 .json por análise salva — em DATA_DIR (.gitignore)
+├─ chat/                # (gerado) mensagens.json do Chat — em DATA_DIR (.gitignore)
+├─ comunidade/          # (gerado) palpites.json + admin.json — em DATA_DIR (.gitignore)
+├─ INICIAR.bat          # Sobe o servidor (local)
 ├─ LEIA-ME.txt          # Manual do usuário (PT-BR)
 ├─ DEPLOY-ScopeMind.txt # Guia de hospedagem na Render
 ├─ requirements.txt     # vazio (stdlib) — só pra Render detectar Python
 ├─ runtime.txt          # python-3.12.10
-├─ render.yaml          # Blueprint da Render (start: python server.py + env vars)
-└─ .gitignore           # ignora config.json, cache/, relatorios/, __pycache__, _*.py, .serverpid
+├─ render.yaml          # Blueprint da Render (web service Starter + DISCO /var/data + env vars)
+└─ .gitignore           # ignora config.json, cache/, relatorios/, chat/, comunidade/, __pycache__, *.pyc, _*.py
 ```
+
+### `DATA_DIR` (persistência na hospedagem — IMPORTANTE)
+Todos os módulos que gravam dados usam **`DATA_DIR = os.environ.get("DATA_DIR") or BASE_DIR`**:
+- **Local:** `DATA_DIR` = a própria pasta do projeto (nada muda no PC).
+- **Hospedagem:** `DATA_DIR=/var/data` (o **disco permanente** da Render) → `config.json`, `cache/`, `relatorios/`,
+  `chat/`, `comunidade/` ficam lá e **NÃO somem a cada deploy**. (Sem isso, o disco da Render é efêmero e zeraria
+  cadastros/chat/palpites a cada atualização — esse era o bloqueio nº 1 da produção, já resolvido.)
 
 ---
 
 ## 5. MÓDULOS (o que o usuário vê)
-Menu principal: **📅 Agenda de jogos · 🔴 Ao Vivo · ✅ Encerrados · 🏆 Tabelas · 📈 Placar de Acertos · 📄 Relatórios salvos**
+Menu: **📅 Agenda · 🔴 Ao Vivo · ✅ Encerrados · 📈 Placar de Acertos · 📄 Relatórios salvos (só admin) ·
+🎮 Placar da Comunidade · 💬 Chat ao vivo · 👤 Conta**. No topo: **"👋 Bem-vindo, <Nome>"** (todos) e, p/ cliente,
+o badge (🎟️ X grátis ou ✨ "∞ UNLIMITED" se VIP). Botão flutuante **💬 Suporte** (WhatsApp) só p/ cliente.
 
-1. **📅 Agenda de jogos** — abas **Hoje** e **Amanhã** (com data). Mostra **só jogos a começar**
-   (jogos AO VIVO somem daqui e vão pro módulo Ao Vivo; ENCERRADOS vão pro módulo Encerrados).
-   **Atualiza sozinha a cada 1 minuto** (sem recarregar a página). Jogos agrupados em **pastas por
-   campeonato** (accordion recolhível). Tem **busca**, **filtro por campeonato**, **Expandir/Recolher** e **⭐ Favoritos**.
-   Cada jogo: `🛡️ Time A × Time B 🛡️` numa linha só + placar + horário/onde-assistir. Clicar abre os Detalhes.
-2. **🔴 Ao Vivo** — só jogos em andamento, placar em tempo real, **auto-refresh a cada 2 min**.
-3. **✅ Encerrados** — jogos já encerrados (ontem + hoje) com placar final, agrupados por campeonato.
-4. **🏆 Tabelas** — classificação de um campeonato (dropdown). ⚠️ No **plano grátis**, só temporadas passadas
-   (a temporada atual vem vazia — mostra aviso).
-5. **📈 Placar de Acertos** — compara o **palpite** da IA (Casa/Empate/Fora) com o **resultado real** (ontem/hoje)
-   → mostra **% de acerto**, acertos, erros, pendentes. É a credibilidade do sistema.
-6. **📄 Relatórios salvos** — toda análise feita fica salva; reabrir é **grátis** (não usa IA). Dá pra excluir.
-7. **⭐ Favoritos** — estrela em **campeonatos** (pasta) e **times** (cartão). Favoritos vão pro **topo** + borda
-   amarela. Botão "⭐ Favoritos" filtra só os favoritos. Salvo no **localStorage** do navegador.
-8. **🔔 Alertas** — botão na barra; com permissão de notificação, **avisa quando um jogo do favorito vai começar**
-   (≤15 min). (Alerta de "escalação saiu" ainda NÃO implementado — ver pendências.)
-9. **Análise com IA** (botão "🧠 Analisar com IA" nos Detalhes) — roda os 10 agentes e gera o relatório.
-   **Detalhes do jogo são grátis**; só o botão Analisar **gasta crédito**.
-10. **🧾 Cadastro de clientes** — na tela de login, "Criar conta grátis" (nome, CPF, e-mail, senha).
-12. **🎮 Placar da Comunidade** — **JÁ EXISTE** (construído em 2026-06-04). Área **gratuita e recreativa**
-    (NÃO é aposta, NÃO tem dinheiro/prêmio) de **palpites de placar** com **XP e ranking** estilo Duolingo.
-    Backend `comunidade.py` (palpites em `comunidade/palpites.json`, admin em `comunidade/admin.json`, Lock + atômico).
-    **Regras:** acertar o placar EXATO = **+10 XP**; errar = **−2 XP**; pendente/adiado/cancelado = 0; **XP nunca
-    fica negativo**. **1 palpite por jogo**, editável **até o início** (depois trava); placar de **0 a 20**.
-    **Modelo "recompute" (importante):** XP e ranking são **recalculados** a partir dos palpites resolvidos +
-    ajustes manuais, somando em ordem cronológica com **piso 0 a cada passo** (estilo Duolingo). Por isso o
-    processamento é **idempotente** — reprocessar nunca duplica XP. **Processamento automático:** quando um jogo
-    encerra (status `short` FT/AET/PEN do `dados_futebol`), o sistema resolve os palpites (compara placar);
-    PST/SUSP→adiado, CANC→cancelado (0 XP). Roda no acesso ao módulo (throttle 90s) e no agendador de 6h.
-    **Ranking:** desempate por XP→acertos→taxa→nº palpites→mais antigo→nome. **Faixas/badges** (selo = sempre a
-    melhor): Top3 👑 Hall da Glória, Top10 🏆 Lenda, Top50 🥈 Mestre, Top100 🛡️ Analista, Top1000 🔭 Observador,
-    resto 🌱 Estreante. **Abas:** Palpitar (cards com inputs), Ranking (pódio Top 3 + tabela), Meu desempenho
-    (stats + evolução de XP + histórico) e **Admin** (só admin: registrar resultado/adiar/cancelar, reprocessar,
-    ajustar XP manual, bloquear usuário, exportar CSV). **Quem participa:** qualquer logado (cliente, VIP, admin).
-11. **💬 Chat ao vivo** — **JÁ EXISTE** (construído em 2026-06-04). Menu novo "💬 Chat ao vivo". Em
-    `chat.py` (motor de mensagens, igual padrão do `relatorios.py`: arquivo `chat/mensagens.json`, gravação
-    atômica + `threading.Lock`). **Acesso só VIP:** admin sempre entra; cliente só entra se tiver flag
-    `vip: true` (clientes nas 3 grátis ficam numa tela "🔒 só VIP"). **Quem libera VIP:** o **admin**, num
-    **painel dentro do próprio Chat** (lista os clientes cadastrados → botões "Tornar VIP" e "Suspender").
-    **DENUNCIE:** botão 🚩 em cada mensagem (menos nas suas). A mensagem some com **3 denúncias** de pessoas
-    diferentes (`DENUNCIAS_P_OCULTAR`), e isso vira um **strike** pro autor; com **3 strikes**
-    (`STRIKES_P_SUSPENDER`) a conta é **suspensa automaticamente** (lê, mas não envia). Admin pode
-    suspender/reativar na mão (reativar zera os strikes) e "🗑️ Limpar chat". **Moderação leve de conteúdo:**
-    bloqueia palavrões (lista em `PALAVROES`), links e telefones; tamanho máx. 500 chars; anti-flood de 2s.
-    Front faz **polling a cada 4,5s** (`/api/chat?desde=<ultimo_id>`): recebe mensagens novas + lista
-    `ocultos` (ids removidos, p/ apagar da tela). **Suspensão/strikes ficam no `config.json`** (campos `vip`,
-    `suspenso`, `strikes` no usuário); as **mensagens** ficam em `chat/` (no `.gitignore`).
-    ⚠️ Em produção (Render, disco efêmero) precisa de **banco/disco persistente** — ver seção 9.
+1. **📅 Agenda** — abas Hoje/Amanhã. Só jogos a começar (ao vivo vão pro módulo Ao Vivo; encerrados pro Encerrados).
+   Pastas (accordion) por campeonato, busca, filtro, Expandir/Recolher, ⭐ Favoritos, 🔔 Alertas. Times em uma linha
+   ("Brasil **VS** Argentina" — o "VS" é um selo CSS inclinado verde→azul, classes `.jl-x`/`.cj-vs`/`.vs-titulo`).
+   **Auto-atualiza a cada 10 min** (era 1 min — reduzido pra poupar cota). **Só campeonatos de DESTAQUE** (ver seção 6).
+2. **🔴 Ao Vivo** — jogos em andamento; auto-refresh 2 min (cache 90s).
+3. **✅ Encerrados** — encerrados (ontem+hoje) com placar.
+4. **📈 Placar de Acertos** — compara o `PROGNOSTICO` (Casa/Empate/Fora) da IA com o resultado real → % de acerto.
+5. **📄 Relatórios salvos** — **escondido do cliente** (só admin). Reabrir é grátis.
+6. **🎮 Placar da Comunidade** — área **gratuita e recreativa** de palpites de placar com XP e ranking (estilo
+   Duolingo). NÃO é aposta, sem dinheiro/prêmio (tem avisos de responsabilidade). Acertar placar EXATO = +10 XP;
+   errar = −2; pendente/adiado/cancelado = 0; XP nunca negativo (piso 0, **estilo Duolingo — clamp a cada evento**).
+   1 palpite/jogo, editável até o início (depois trava), placar 0–20. Faixas/badges: Top3 👑 Hall da Glória, Top10
+   🏆 Lenda, Top50 🥈 Mestre, Top100 🛡️ Analista, Top1000 🔭 Observador, resto 🌱 Estreante (selo = melhor faixa).
+   Abas: Palpitar, Ranking (pódio Top3 + tabela), Meu desempenho (stats + sparkline + histórico) e **Admin** (só
+   admin: registrar resultado/adiar/cancelar, reprocessar, ajustar XP, bloquear, exportar CSV). Processa XP quando o
+   jogo encerra (usa `short` FT/AET/PEN do dados_futebol; PST/SUSP=adiado, CANC=cancelado), idempotente.
+7. **💬 Chat ao vivo** — **só VIP** (admin sempre entra; cliente não-VIP vê tela 🔒 "só VIP" + botão WhatsApp).
+   Polling 4,5s. Botão **DENUNCIE** 🚩 por mensagem: **3 denúncias** de pessoas diferentes ocultam a msg e dão 1
+   strike ao autor; **3 strikes** = **suspensão automática** (lê mas não envia). Admin libera VIP/suspende/limpa num
+   painel dentro do próprio chat. Moderação leve: palavrões/links/telefones bloqueados; máx 500 chars; anti-flood 2s.
+8. **👤 Conta** (todos) — cabeçalho com avatar; status: **VIP com barra de duração (X dias decrescendo)** + data de
+   vencimento (quando ≤5 dias, barra vermelha + botão renovar), ou "Plano grátis" com botão "Quero ser VIP". **Trocar
+   senha** (só cliente; admin é 403 pois a senha dele vem do env da Render). **Suporte WhatsApp**.
+9. **Análise com IA** (botão "🔮 Ver análise completa" p/ cliente / "🧠 Analisar com IA" p/ admin nos Detalhes) — roda
+   os agentes e gera o **PAINEL VISUAL** (ver seção 5.1). **Detalhes do jogo são grátis**; só o botão Analisar gasta.
+10. **🧾 Cadastro de clientes** — "Criar conta grátis" (nome, CPF, e-mail, senha).
+11. **🧠 Tela "100 IAs pensando" (cronômetro 20s)** — ao analisar, **todos** (admin e cliente) veem uma tela cheia,
+    impossível de fechar, com fundo `background.png` animado, anel girando, número decrescendo e frases — por **20s**
+    no mínimo (se a IA real demorar mais, espera terminar). Pro cliente, isso também disfarça o reaproveitamento.
 
-### Os 10 agentes (em `agentes.py`, SYSTEM_PROMPT)
-Monitoramento, Estatístico, Classificação/Motivação, Tático, Elenco, Histórico/Confrontos,
-**Contexto Externo e Fator Humano** (inclui estado psicológico/vida pessoal dos jogadores — ex.: caso Vini Jr),
-Risco/Incerteza (tem poder de veto na confiança), Probabilidade/Cenários, Consenso Final.
-- O relatório tem **25 seções** (1–24 + "25. Estimativas de mercado": 1X2, Mais/Menos, placar exato,
-  intervalo, escanteios, provável artilheiro) + grau de confiança.
-- No fim, a IA escreve 2 marcadores que o sistema lê e **remove da exibição**:
-  `CONFIANCA: Baixa|Moderada|Boa|Alta` e `PROGNOSTICO: Casa|Empate|Fora`.
+### 5.1. O RELATÓRIO É UM PAINEL VISUAL (não é mais texto corrido)
+A IA (`agentes.py`) devolve um **JSON ESTRUTURADO** e o front (`renderPainelAnalise` em app.js) monta cards `.pa-*`:
+barra de **confiança** colorida (com nota 0–100), **barras de probabilidade** (casa/empate/fora), card **"Cenário mais
+provável"**, cards de **placar** (principal + alternativos), **artilheiros reais** (nome/time/posição/% de gol/status
+Confirmado·Provável·Dúvida/motivo), **leitura do jogo** (frases curtas com ícones ⚽🧱⚡🎯🔄), **o que favorece cada
+lado** (2 colunas), **por que a confiança é X**, **indicadores rápidos** (gols/ambas marcam/escanteios/1º tempo/risco)
+e botão **"Ver análise completa"** (abre os `detalhes` em markdown). Relatórios antigos (só texto) ainda abrem (fallback
+para `markdown(relatorio)`). Campos do JSON: `confianca`(Média/Alta), `confianca_score`(60–90), `confianca_motivos[]`,
+`prognostico`, `favorito`, `prob_casa/empate/fora`, `placar_principal`(+motivo), `placares_alt[]`, `artilheiros[]`,
+`artilheiros_aviso`, `leitura[]`, `forcas_casa/forcas_fora`, `indicadores{}`, `detalhes`.
 
 ---
 
 ## 6. REGRAS DE NEGÓCIO
-- **Análise é probabilística, NUNCA garantia.** Nunca prometer acerto/"aposta segura".
+- **Análise é probabilística, NUNCA garantia.**
 - **Economia de IA (custa dinheiro por análise):**
-  - Análise SÓ roda no botão "Analisar com IA". Agenda, detalhes, relatórios salvos e tabelas são grátis.
+  - Análise só roda no botão Analisar. Agenda, detalhes, relatórios salvos e a Conta são grátis.
   - **Jogo encerrado ou de data passada NÃO pode ser analisado** (bloqueado no front e no servidor).
   - **Teto diário global** de análises: env `MAX_ANALISES_DIA` (padrão 30).
-  - **REAPROVEITAMENTO (2026-06-04, importante p/ custo):** se um jogo **já tem análise salva**, o
-    `/api/analisar` **devolve a salva sem chamar a IA** (`reaproveitado: True`, custo ZERO). A IA só roda **na
-    1ª vez** (quando não existe nenhuma análise daquele jogo). Assim, se 10 clientes clicam no mesmo jogo, só o
-    1º "paga". O **admin** pode forçar uma análise nova com o botão **Refazer** (manda `forcar: true`; só o admin
-    é obedecido). Para o cliente **não perceber** que é reaproveitada, o front mostra um **cronômetro dramático
-    de 30s** ("100 IAs pensando", fundo `background.png` animado, janela `#modal-preparando` **sem como fechar**)
-    e só então revela o relatório (espera no mínimo 30s; se a IA real demorar mais, espera até terminar).
+  - **REAPROVEITAMENTO (custo zero):** se o jogo **já tem análise salva**, `/api/analisar` devolve a salva **sem
+    chamar a IA** (`reaproveitado:True`). A IA só roda na **1ª vez**. Admin força nova via "Refazer" (`forcar:true`,
+    só admin obedecido). A tela de 20s disfarça o reaproveitamento para o cliente.
+- **Confiança (decisão do dono):** o score é **clampado em 60–90** e o rótulo **NUNCA é "Baixa"** (60–69=Média,
+  70–90=Alta) — pra não descredibilizar o sistema (ajustado no prompt e em `agentes._saneia`).
 - **Clientes (cadastro):**
-  - **Cliente comum (não-VIP):** tem **3 análises grátis** (env `LIMITE_ANALISES_GRATIS`, padrão 3). **Cada JOGO
-    diferente** que ele abre gasta **1 das 3**; **reabrir o MESMO jogo é grátis** (o servidor guarda a lista
-    `jogos_abertos` no usuário; `analises_usadas` = tamanho dessa lista). Mesmo reaproveitada (custo zero p/ você),
-    abrir um jogo novo **conta 1 das 3** (decisão do dono — mantém o funil das 3 grátis → vira VIP).
-  - **VIP:** análises **ILIMITADAS** (é o benefício de pagar). VIP é a flag `vip: true` no usuário; admin é VIP por
-    natureza. (VIP também é a chave do **Chat** — ver módulo 11.)
-  - Cliente é **restrito**: **não vê a engrenagem (⚙️)**, **não vê o módulo "Relatórios salvos"**, não vê a etiqueta
-    "📄 analisado" nos jogos, nem o atalho "ver salvo" (tudo isso revelaria o reaproveitamento). Os botões
-    **Refazer/Excluir** do relatório também são escondidos do cliente.
-  - **CPF** precisa ser **válido** (checksum brasileiro) e **único**; **e-mail** também **único**. Sem contas duplicadas.
-- **Ordem dos campeonatos** (função `prioridadeGrupo` em app.js):
-  **Copa do Mundo** (-100) → **Amistosos de seleções** (-50) → **Brasil** (Série A/B/C/D, Copa do Brasil) →
-  **Inglaterra · Espanha · França · Itália · Alemanha** → continentais → demais.
-  **Favoritos do usuário sempre vão pro topo.**
-- **Filtros (só campeonatos profissionais de destaque):**
-  - `PADRAO_NAO_PRO` (nome do campeonato) e `PADRAO_TIME_NAO_PRO` (nome do time) removem: base/sub (U17/U20),
-    juvenil, reservas, amador, futebol feminino, e 3ª divisão pra baixo / regionais.
-  - **Brasil**: `_eh_profissional` só deixa **Série A/B/C/D + Copa do Brasil + Copa do Nordeste** (corta estaduais/copas regionais).
-  - **"Amistosos da Copa do Mundo 2026"** (liga "Friendlies"): só seleções principais, **nada de SUB**.
-- **Tudo em português:** nomes de seleções e países traduzidos (`TRADUCAO_PAIS`/`traduzir` no backend);
-  a liga "Friendlies" é exibida como "Amistosos da Copa do Mundo 2026" (`nomeLiga()` no front).
+  - **Cliente comum (não-VIP):** **3 análises grátis** (env/config `LIMITE_ANALISES_GRATIS`, editável na engrenagem
+    via campo `limite_analises_gratis`). **Cada JOGO diferente** gasta 1; **reabrir o MESMO jogo é grátis** (servidor
+    guarda `jogos_abertos` no usuário; `analises_usadas`=tamanho da lista). Reaproveitada também conta 1 p/ jogo novo.
+  - **Cliente que JÁ comprou** um jogo vê **"📄 Ver análise completa novamente"** (instantâneo, sem cronômetro, sem
+    gastar) e a etiqueta "📄 minha análise" na agenda. Front guarda em `MEUS_JOGOS` (vem de `jogos_abertos` no login/
+    cadastro/`/api/conta`).
+  - **VIP:** análises **ILIMITADAS**; badge "∞ UNLIMITED". VIP é a flag `vip:true` + **validade `vip_ate`** (dura
+    `vip_dias` dias — padrão 30, editável na engrenagem via `vip_dias`). `_vip_valido(u)` = admin sempre; vip True e
+    não vencido; sem `vip_ate` = vitalício. **Expirado volta a ser cliente comum.** Renovar = admin clica "Tornar VIP"
+    de novo. VIP é também a chave do **Chat**.
+  - Cliente é **restrito**: não vê ⚙️, não vê "Relatórios salvos", não vê etiqueta "analisado" de outros, nem
+    Refazer/Excluir. **CPF** válido (checksum BR) e **único**; e-mail **único**.
+- **Campeonatos de DESTAQUE (filtro da agenda/ao vivo):** mostra só **a 1ª divisão** de cada país de destaque
+  (whitelist `TOP_DIVISAO` por nome exato em dados_futebol) + **Brasil = Série A, B, C + Copa do Brasil** + as
+  **internacionais** (Copa do Mundo, Champions, Europa/Conference League, Libertadores, Sul-Americana, Nations League,
+  Euro, Copa América, eliminatórias, amistosos de seleção, Mundial de Clubes). Países de destaque hoje: Brasil,
+  Inglaterra, Espanha, França, Alemanha, Itália, Portugal, Holanda, Argentina, Arábia Saudita, EUA/MLS, Bélgica,
+  México, Colômbia, Chile, Uruguai, Canadá, China. **Teto `MAX_JOGOS_DIA=100`** (aumentar NÃO gasta cota — a API traz
+  tudo numa consulta só; o teto só corta na exibição). Antes existe o filtro `_eh_profissional` (remove base/sub/
+  juvenil/reservas/amador/feminino + 3ª divisão pra baixo/regionais).
+- **Tudo em português:** seleções/países traduzidos (`TRADUCAO_PAIS`/`traduzir`); `country` interno fica em inglês
+  (lógica/flag/prioridade dependem disso — **NÃO traduzir `country`**, use `country_pt` só pra exibir). A liga
+  "Friendlies" é EXIBIDA como "Amistosos da Copa do Mundo 2026" (`nomeLiga()` no front; **não renomear `league` interno**).
+- **Termo no relatório:** "convocação histórica" é trocado automaticamente por "convocações anteriores"
+  (`agentes._corrigir_termos`, pós-IA).
 
 ---
 
 ## 7. DECISÕES TÉCNICAS (e o porquê)
-- **Python stdlib pura:** pra rodar no PC do Alberto sem instalar dependências (menos chance de erro).
-- **Chaves via variável de ambiente na hospedagem:** mantém os segredos fora do código/Git.
-- **Bandeiras via flagcdn (imagem PNG):** o emoji de bandeira **não renderiza no Windows** (vira "BR"). O ISO do
-  país é extraído da URL de bandeira da API (`isoDaBandeira`) ou do mapa `PAIS_ISO`; senão, 🌍.
-- **País interno em inglês + `country_pt` para exibir:** a lógica (prioridade, flag, filtro do Brasil) usa o nome
-  em inglês; o front só exibe `country_pt`. **NÃO traduzir o campo `country` interno** (quebraria a lógica).
-- **`nomeLiga()` no front:** exibe "Amistosos da Copa do Mundo 2026" mas mantém "Friendlies" interno (a prioridade
-  depende disso). **NÃO renomear `league` interno.**
-- **Cache do dia = 60s:** pra refletir rápido quando um jogo fica ao vivo (a agenda atualiza a cada 1 min).
-- **Gravação atômica** (`tmp` + `os.replace`) em `config.json` e no cache: evita corromper com 2 requisições juntas.
-- **Retry de rede no front:** `api()` re-tenta **GET** 3x em erro de rede ("Failed to fetch"); **não** re-tenta
-  POST (não repetir análise/cadastro). Servidor usa `ServidorScopeMind` (threads daemon, fila de 128, reuse address).
+- **Python stdlib pura:** rodar no PC do Alberto sem instalar dependências (menos erro).
+- **Persistência por DISCO permanente (não banco):** mantém o app file-based; `DATA_DIR` aponta os dados pro disco da
+  Render. Bem mais simples que reescrever para um banco.
+- **Relatório em JSON estruturado:** o pedido era um painel visual, não texto. JSON com parse robusto (`_extrair_json`
+  tolera ``` e texto em volta) + `_saneia` (tipos/limites) + **fallback p/ texto** se o JSON falhar (não quebra).
+- **XP "recompute":** ranking/XP recalculados dos palpites resolvidos + ajustes → **idempotente** (reprocessar não duplica).
+- **Cache com tratamento de COTA:** a API grátis tem ~100 CONSULTAS/dia. Quando estoura, ela responde com a palavra
+  "plan" (de "upgrade your plan") — antes o código confundia com "data fora do plano" e **salvava lista vazia no cache,
+  apagando os jogos**. Agora `_fixtures_do_dia` separa **cota** ("request limit") de **bloqueado** (data fora do plano)
+  e, na cota/erro de rede, **NUNCA sobrescreve o cache** (mantém os últimos jogos) + aviso claro. Cache de "hoje" = 10 min.
+- **Bandeiras via flagcdn (PNG):** emoji de bandeira não renderiza no Windows.
+- **Login tolerante:** `_login`/`_cadastrar` dão `.strip()` na senha (ignora espaço acidental de autofill/copiar-colar);
+  username já era case-insensitive. Token = `hmac(secret, usuario)`; role ausente = "admin" (admin legado).
+- **Gravação atômica** (tmp + `os.replace`) em config/cache/chat/comunidade; cada módulo de dados usa `threading.Lock`.
+- **Retry de rede no front:** `api()` re-tenta GET 3x em "Failed to fetch"; não re-tenta POST. Servidor
+  `ServidorScopeMind` (daemon_threads, fila 128, reuse address).
+- **Cache-Control: no-cache** nos arquivos estáticos + SW v3 com limpeza → atualizações chegam sem hard refresh
+  (resolveu a "Tabela" que insistia em aparecer por cache).
 
 ---
 
 ## 8. LIMITES DO PLANO GRÁTIS DA API-FOOTBALL (importante!)
-- **Datas:** só libera **ontem, hoje e amanhã**. Semana/mês completos e resultados antigos = **plano pago**.
-- **Tabelas/Classificação:** só **temporadas passadas** (a atual vem vazia no grátis).
-- **Cota:** ~**100 requisições/dia**. Por isso o Ao Vivo atualiza a cada 2 min e a Agenda a cada 1 min (com cache).
-- A chave da API-Football do Alberto está em `config.json` (campo `football_api_key`).
+- O **100 é de CONSULTAS/dia, NÃO de jogos** (1 consulta traz todos os jogos do dia). Limitar nº de jogos não economiza cota.
+- **O que economiza cota:** consultar menos vezes (por isso agenda 10 min + cache 10 min) e o tratamento de cota
+  (serve dados velhos quando estoura, em vez de zerar).
+- **Datas:** só ontem/hoje/amanhã. Semana/mês e resultados antigos = plano pago.
+- **Tabelas/Classificação:** só temporadas passadas no grátis (por isso o **módulo Tabelas foi REMOVIDO** — o dono não
+  quer pagar agora; backend `/api/tabela` e `dados_futebol.tabela` ficaram dormentes).
+- **PREÇOS (jun/2026, confirmar no painel deles):** Free=100/dia; **Pro=US$19/mês (~R$110)=7.500/dia**; Ultra US$39
+  (75k/dia, +odds); Mega US$99 (150k/dia, +stats de jogador). O Pro já resolve com folga (e libera as Tabelas).
+- Chave da API-Football do Alberto está no `config.json` (`football_api_key`) e na env `FOOTBALL_API_KEY` da Render.
 
 ---
 
-## 9. HOSPEDAGEM (status)
-- **Esclarecido ao usuário:** **GitHub** só guarda o código; **Vercel NÃO serve** (é pra frontend/serverless, não
-  roda servidor Python ligado 24h); usar **Render** para rodar. Decisão: **plano Starter (~US$7/mês), privado**.
-- Já existem: `render.yaml`, `requirements.txt`, `runtime.txt`, `.gitignore`, `DEPLOY-ScopeMind.txt`.
-- **PERSISTÊNCIA RESOLVIDA (2026-06-04):** a Render apaga os arquivos a cada deploy (disco efêmero). Em vez de
-  reescrever tudo para um banco, usamos o **DISCO PERMANENTE da Render** (~US$0,25/GB/mês). Todos os módulos que
-  gravam dados agora usam a variável **`DATA_DIR`** (`os.environ.get("DATA_DIR") or BASE_DIR`): local = a própria
-  pasta; na hospedagem = `/var/data` (o disco). Cobre `config.json`, `cache/`, `relatorios/`, `chat/`, `comunidade/`.
-  O `render.yaml` já declara o disco (`scopemind-dados`, 1 GB, `mountPath: /var/data`) e seta `DATA_DIR=/var/data`.
-  **Deploy pelo Blueprint** (lê o render.yaml e monta disco + variáveis automaticamente).
-- **Git:** repositório **inicializado** e com **1º commit** na branch `main` (config.json fica fora pelo `.gitignore`).
-  Falta: criar o repo no GitHub, `git remote add origin <url>` + `git push -u origin main`, e criar o Blueprint na Render.
-- **AINDA NÃO HOSPEDADO** (faltam os cliques do Alberto no GitHub/Render — guia em `DEPLOY-ScopeMind.txt`).
+## 9. HOSPEDAGEM (CONCLUÍDA ✅)
+- **No ar:** **https://scopemind-ai.com.br** (HTTPS válido) + **https://scopemind-ai.onrender.com**.
+  www.scopemind-ai.com.br redireciona (301) pra raiz.
+- **Render:** Web Service **Starter** (~US$7/mês) + **Disco permanente** `/var/data` (1 GB, ~US$0,25/mês).
+- **GitHub:** `engenhariamecalbertosouza-wq/scopemind-ai`, branch `main`. Push → deploy automático.
+- **Domínio (registro.br):** A da raiz → **216.24.57.1**; CNAME `www` → **scopemind-ai.onrender.com**. (Já configurado
+  e verificado pela Render; o cliente tinha um `scopemind.com.br` SEM o "-ai" por engano na lista de Custom Domains —
+  inofensivo, ficou lá.) ⚠️ **NUNCA clicar em "Delete Web Service"** (botão vermelho) — apaga o site INTEIRO.
+- ⚠️ O dono tem **OUTRO** domínio, `mapmanutencao.com.br` (empresa MAP, na Vercel) — **não mexer** nessa zona DNS.
 
-### Variáveis de ambiente (na hospedagem)
-`DATA_DIR` (=/var/data, o disco), `ANTHROPIC_API_KEY`, `FOOTBALL_API_KEY`, `ADMIN_USER`, `ADMIN_PASSWORD`,
-`APP_SECRET` (gerada pela Render), `MAX_ANALISES_DIA` (padrão 30), `LIMITE_ANALISES_GRATIS` (padrão 3),
-`PORT` (a Render injeta), `PYTHON_VERSION`. **Secretas (você cola): `ANTHROPIC_API_KEY`, `FOOTBALL_API_KEY`, `ADMIN_PASSWORD`.**
+### Variáveis de ambiente (na Render)
+`DATA_DIR=/var/data`, `ANTHROPIC_API_KEY` (secreta), `FOOTBALL_API_KEY` (secreta), `ADMIN_USER`
+(=**`admin@scopemind.com.br`** — o dono trocou de "admin" pra esse e-mail), `ADMIN_PASSWORD` (secreta,
+=**`Alberto2026`**), `APP_SECRET` (gerada pela Render), `MAX_ANALISES_DIA` (30), `LIMITE_ANALISES_GRATIS` (3),
+`VIP_DIAS` (30, opcional), `ANTHROPIC_MODEL` (opcional), `PORT` (injetada), `PYTHON_VERSION` (3.12.10).
+**Login admin em produção:** usuário `admin@scopemind.com.br` / senha `Alberto2026`. **Suporte/WhatsApp do dono:** `5582920012133`.
 
 ---
 
 ## 10. PENDÊNCIAS / PRÓXIMOS PASSOS
-1. ✅ **💬 CHAT AO VIVO — FEITO (2026-06-04).** Construído e testado (ver módulo 11 na seção 5). Conceito de VIP
-   resolvido com a **flag `vip: true`** no usuário (admin sempre é VIP); admin libera VIP no painel dentro do
-   Chat. DENUNCIE com 3 denúncias → some + strike; 3 strikes → suspensão automática. **Ainda falta p/ produção:**
-   o disco da Render é efêmero, então mensagens (`chat/`) e cadastros (`config.json`) zeram a cada deploy —
-   precisa de **banco/disco persistente** antes de ter chat real com clientes (item 3).
-2. **🔔 Alerta de "escalação saiu"** (lineup) — exige consultar a API de escalações periodicamente (custo de cota).
-3. **Hospedagem** + **banco de dados persistente** (pré-requisito p/ clientes reais e chat).
-4. Ideias futuras: favoritar time e fixar no topo, mais mercados, etc.
+1. **Plano pago da API-Football (Pro ~R$110/mês)** quando tiver clientes de verdade usando bastante — libera muitas
+   consultas/dia e as datas/temporadas (volta o módulo Tabelas). Hoje o grátis (100/dia) atende uso leve; em uso
+   intenso pode estourar (mas agora degrada suave, mantendo os últimos jogos).
+2. **Otimização opcional:** pausar a auto-atualização quando a aba está em segundo plano (Page Visibility API) — corta
+   muito o consumo de cota. O dono ainda não pediu.
+3. **🔔 Alerta de "escalação saiu"** (lineup) — exige polling da API de escalações (custo de cota).
+4. Ideias futuras da comunidade: ranking semanal/mensal, missões diárias, sequência, perfil público, comentários,
+   compartilhar palpite, conquistas (a estrutura já foi pensada pra escalar).
+5. **VIP "novamente"/badge:** o "Ver análise novamente" e a contagem de jogos abertos hoje só populam para **cliente
+   comum** (limitado). VIP revê grátis pelo fluxo normal (com cronômetro). Dá pra estender pro VIP se quiser.
 
 ---
 
-## 11. CUIDADOS PARA NÃO QUEBRAR O SISTEMA
-- ✅ **Sempre Read antes de Edit** em `app.js`/`server.py` (a formatação real difere às vezes; o Edit falha por isso).
-- ✅ **Não traduzir o campo `country` interno** nem renomear `league` interno — quebra prioridade/flag/filtro Brasil.
-  Use `country_pt` e `nomeLiga()` apenas para EXIBIR.
-- ✅ **`config.json` tem segredos** (chaves + hash de senhas + secret). NÃO commitar (já está no `.gitignore`).
-  ⚠️ A chave da Anthropic foi exposta no chat uma vez (o dono optou por **não** trocar) — ela vive no config.json.
-- ✅ **Análise gasta dinheiro** (Opus). Manter: só no botão Analisar, bloqueio em encerrados, cota do cliente, teto diário.
-- ✅ Ao mexer nos filtros, lembrar que existem DOIS níveis: nome do **campeonato** (`PADRAO_NAO_PRO`) e nome do **time**
-  (`PADRAO_TIME_NAO_PRO`), mais a regra especial do **Brasil** em `_eh_profissional`.
-- ✅ **Login:** admin com `admin/admin` (env `ADMIN_PASSWORD` sobrescreve na hospedagem); clientes por e-mail.
-  Token = `hmac(secret, usuario)`; role default ausente = "admin" (compatibilidade do admin legado).
-
-### Como testar (sem gastar com IA)
-1. **Sem erros de código:** `python -c "import server, agentes, dados_futebol, relatorios; print('OK')"`
-   (rodar na pasta do projeto, com o python do caminho acima).
-2. **Subir servidor de teste:** `Start-Process python server.py` (matar pythons antigos antes).
-3. **Testar endpoints** com PowerShell `Invoke-RestMethod` (login → pega token → chamar as rotas).
-4. ⚠️ **Screenshot pelo navegador (Chrome MCP) costuma TRAVAR** nesta página (ela se atualiza sozinha a cada 1 min e
-   a ferramenta não acha um "momento parado"). Validar por **dados** (endpoints) e por **console sem erros**.
+## 11. CUIDADOS PARA NÃO QUEBRAR (LIÇÕES DESTA SESSÃO)
+- ✅ **SEMPRE validar o `web/app.js` no navegador ANTES de publicar.** Um erro de sintaxe (ex.: aspas duplas dentro de
+  string) **derruba o front INTEIRO** — login e tudo param, e parece "não faz nada". Já aconteceu (na `comPodio`).
+  Como validar sem node/deno (não instalados): subir um preview Python servindo `web/`, abrir uma página `/check` que
+  faz `new Function(fetch('/app.js'))` e checar `document.title` (`SINTAXE_OK` ou o erro). O screenshot do preview
+  **trava** se o `background.png` estiver com `background-attachment: fixed` — sirva o index com um override de fundo
+  sólido, OU use a página `/check` que não carrega o index. A ferramenta de preview às vezes **engasga**: reiniciar o
+  preview server resolve; navegar via `location.href` no eval **não funciona** (mundo isolado) — sirva a página alvo na raiz.
+- ✅ **Sempre Read antes de Edit** em `app.js`/`server.py`.
+- ✅ **Não traduzir `country` interno** nem renomear `league` interno (quebra prioridade/flag/filtro Brasil). Use
+  `country_pt` e `nomeLiga()` só pra EXIBIR.
+- ✅ **`config.json` tem segredos** (chaves + hash de senhas + secret). NÃO commitar (já no `.gitignore`).
+  ⚠️ A chave da Anthropic foi exposta no chat uma vez (o dono optou por **não** trocar). Tokens/segredos do app
+  apareceram em prints — evitar mostrar a aba Environment da Render em público.
+- ✅ **Análise gasta dinheiro** (mantém: só no botão Analisar, bloqueio em encerrados, cota do cliente, teto diário, reaproveitamento).
+- ✅ **Filtros têm camadas:** `_eh_profissional` (campeonato + time) e `_eh_destaque` (1ª divisão dos países + Brasil
+  A/B/C + internacionais) + `MAX_JOGOS_DIA`. As listas `TOP_DIVISAO`/`LIGAS_DESTAQUE` são fáceis de editar (o dono
+  pede p/ incluir/excluir liga pelo nome).
+- ✅ **Cota da API:** NÃO apagar o cache bom quando a API falha; o tratamento de cota já cuida disso.
+- ✅ **Render + disco:** deploy tem 502 breve (normal). Disco persiste entre deploys (logo, limpar o cache do disco
+  exige cuidado — não há comando fácil; geralmente desnecessário).
+- ✅ **Ao testar local:** backup do `config.json`, rode em `PORT=8799`, restaure o config e apague pastas de dados/
+  scripts `_*.py` depois.
 
 ### Endpoints da API (referência rápida)
-- `GET /api/status` · `GET /api/jogos?periodo=hoje|amanha|ontem|semana|mes|aovivo`
-- `GET /api/tabela?league=&season=` · `GET /api/placar` · `GET /api/relatorios` · `GET /api/relatorio?chave=`
-- `POST /api/login` · `POST /api/cadastrar` · `POST /api/configurar` (só admin) · `POST /api/analisar` · `POST /api/excluir-relatorio`
-- **Chat:** `GET /api/chat?desde=<id>` (poll: `eu`, `acesso`, `mensagens`, `ocultos`, `ultimo_id`) ·
-  `GET /api/chat/usuarios` (admin) · `POST /api/chat/enviar` · `POST /api/chat/denunciar` ·
-  `POST /api/chat/usuario` (admin: `{email, vip?, suspenso?}`) · `POST /api/chat/remover` (admin) · `POST /api/chat/limpar` (admin)
-- **Comunidade:** `GET /api/comunidade/jogos` (jogos+meu palpite) · `GET /api/comunidade/ranking?faixa=geral|top1000|top100|top50|top10|top3` ·
-  `GET /api/comunidade/eu` (stats/histórico/evolução) · `POST /api/comunidade/palpitar` `{jogo, ph, pa}` ·
-  Admin: `GET /api/comunidade/admin/usuarios` · `GET /api/comunidade/admin/palpites?q=` · `GET /api/comunidade/admin/exportar?tipo=ranking|palpites` ·
-  `POST /api/comunidade/admin/resultado` `{chave, home_score, away_score, marcar:''|postponed|cancelled}` ·
-  `POST /api/comunidade/admin/reprocessar` `{chave?}` · `POST /api/comunidade/admin/ajustar-xp` `{usuario, amount, motivo}` · `POST /api/comunidade/admin/bloquear` `{usuario, bloquear}`
-- **Obs.:** `dados_futebol._normalizar` agora também devolve o campo `short` (código FT/PST/CANC/NS da API) — usado pela Comunidade p/ detectar encerrado/adiado/cancelado.
+- `GET /api/status` · `GET /api/jogos?periodo=hoje|amanha|ontem|aovivo` · `GET /api/placar` ·
+  `GET /api/relatorios` · `GET /api/relatorio?chave=`
+- `POST /api/login` · `POST /api/cadastrar` · `POST /api/configurar` (admin: `anthropic_api_key`, `football_api_key`,
+  `anthropic_model`, `auto_reanalise`, `limite_analises_gratis`, `vip_dias`) · `POST /api/analisar` (campo `forcar`
+  só do admin) · `POST /api/excluir-relatorio` · `POST /api/trocar-senha` (cliente) · `GET /api/conta`
+- **Chat:** `GET /api/chat?desde=<id>` · `GET /api/chat/usuarios` (admin) · `POST /api/chat/{enviar,denunciar,
+  usuario(admin),remover(admin),limpar(admin)}`
+- **Comunidade:** `GET /api/comunidade/jogos` · `GET /api/comunidade/ranking?faixa=geral|top1000|top100|top50|top10|top3`
+  · `GET /api/comunidade/eu` · `POST /api/comunidade/palpitar` · admin: `GET /api/comunidade/admin/{usuarios,palpites?q=,
+  exportar?tipo=ranking|palpites}` · `POST /api/comunidade/admin/{resultado,reprocessar,ajustar-xp,bloquear}`
 - Estáticos: `/` (index), `/styles.css`, `/app.js`, `/manifest.json`, `/sw.js`, `/imagens/...`
-- ⚠️ **Bug corrigido junto (2026-06-04):** o menu não tinha o toggle de `#secao-placar` no `app.js` (Placar de
-  Acertos abria em branco). Foi adicionada a linha `$("#secao-placar").classList.toggle("hidden", secao !== "placar")`.
 
 ---
 
 ## 12. OBSERVAÇÕES SOBRE O DONO (Alberto)
-- **Não programa.** Explicar tudo em **PT-BR simples**, com analogias quando ajudar.
-- Está construindo isto de forma **iterativa** (pede features novas a cada conversa).
+- **Não programa.** Explicar tudo em **PT-BR simples**. Está construindo de forma **iterativa** (pede features a cada conversa).
 - Há **memória automática** do projeto em
-  `~/.claude/projects/C--Users-Alberto-Souza-Desktop-Jogo/memory/sistema-analise-esportiva.md`
-  (resumo persistente entre conversas — também vale a leitura).
-- Existe um segundo projeto não relacionado: um jogo em Godot ("Eras da Civilização") na mesma pasta `Desktop\Jogo`.
+  `~/.claude/projects/C--Users-Alberto-Souza-Desktop-Jogo/memory/sistema-analise-esportiva.md` (resumo persistente — vale a leitura).
+- Existe um 2º projeto não relacionado: um jogo em Godot ("Eras da Civilização") na mesma pasta `Desktop\Jogo`.
+- O caminho da memória usa `Desktop-Jogo`, mas o projeto do app fica em `Desktop\AnaliseFutebol` (são coisas diferentes).
 
 ---
-*Documento gerado em 2026-06-04 para handoff entre sessões. Mantenha-o atualizado conforme o projeto evoluir.*
+*Documento de handoff entre sessões. Mantenha-o atualizado conforme o projeto evoluir.*
