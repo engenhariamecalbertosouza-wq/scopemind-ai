@@ -52,6 +52,7 @@
   <div id="tela-app" class="hidden">
     <header class="topo">
       <div class="topo-esq">
+        <button id="btn-menu" class="btn-hamburguer" aria-label="Abrir menu" title="Menu">☰</button>
         <span class="logo-mini">🔭 ScopeMind <b>AI</b></span>
         <span id="badge-modo" class="badge badge-demo">modo demonstração</span>
         <span id="saudacao" class="saudacao"></span>
@@ -63,7 +64,8 @@
       </div>
     </header>
 
-    <nav class="menu-principal">
+    <nav class="menu-principal" id="menu">
+      <div class="menu-cab"><span>🔭 Menu</span><button id="btn-menu-fechar" class="menu-fechar" aria-label="Fechar menu">✕</button></div>
       <button class="menu-item ativa" data-secao="agenda">📅 Agenda de jogos</button>
       <button class="menu-item" data-secao="aovivo">🔴 Ao Vivo</button>
       <button class="menu-item" data-secao="encerrados">✅ Encerrados</button>
@@ -73,6 +75,7 @@
       <button class="menu-item" data-secao="chat">💬 Chat ao vivo</button>
       <button class="menu-item" data-secao="conta">👤 Conta</button>
     </nav>
+    <div id="menu-overlay" class="menu-overlay"></div>
 
     <!-- ---------- SEÇÃO: AGENDA ---------- -->
     <section id="secao-agenda">

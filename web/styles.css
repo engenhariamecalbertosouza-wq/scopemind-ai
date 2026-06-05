@@ -269,6 +269,15 @@ main { padding: 12px 22px 60px; max-width: 1200px; margin: 0 auto; }
 .menu-item:hover { color: var(--texto); }
 .menu-item.ativa { color: var(--verde); border-bottom-color: var(--verde); }
 
+/* Menu lateral (gaveta) — só aparece no celular */
+.btn-hamburguer {
+  display: none; background: var(--cartao); border: 1px solid var(--borda); color: var(--texto);
+  width: 40px; height: 38px; border-radius: 9px; font-size: 19px; cursor: pointer;
+  align-items: center; justify-content: center;
+}
+.btn-hamburguer:hover { background: var(--cartao2); }
+.menu-cab, .menu-fechar, .menu-overlay { display: none; }
+
 /* ---------------- DETALHES DO JOGO ---------------- */
 .det-info { margin: 6px 0 16px; }
 .det-linha { padding: 9px 0; border-bottom: 1px solid var(--borda); font-size: 15px; color: #d7e0ee; }
@@ -955,15 +964,42 @@ table.com-rank tr:hover td { background: rgba(255,255,255,.03); }
   .topo { padding: 11px 14px; }
   .abas, .barra-ferramentas, .tabela-topo { padding-left: 14px; padding-right: 14px; }
 
-  /* MENU PRINCIPAL: rola na horizontal (todas as abas acessíveis com o dedo,
-     inclusive Conta/Chat/Comunidade que antes ficavam cortadas) */
+  /* MENU LATERAL (gaveta): abre da esquerda pelo botão ☰ */
+  .btn-hamburguer { display: inline-flex; }
   .menu-principal {
-    padding: 10px 14px 0; gap: 2px;
-    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+    width: 82%; max-width: 300px; margin: 0; padding: 0 0 20px;
+    flex-direction: column; align-items: stretch; gap: 0;
+    border: none; border-right: 1px solid var(--borda);
+    background: linear-gradient(180deg, var(--cartao), var(--cartao2));
+    box-shadow: 8px 0 40px rgba(0,0,0,.5); overflow-y: auto;
+    transform: translateX(-105%); transition: transform .25s ease;
   }
-  .menu-principal::-webkit-scrollbar { display: none; }
-  .menu-item { flex: 0 0 auto; white-space: nowrap; font-size: 13px; padding: 9px 9px; }
+  .menu-principal.aberto { transform: translateX(0); }
+  .menu-cab {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; font-weight: 800; font-size: 16px; color: var(--texto);
+    border-bottom: 1px solid var(--borda); position: sticky; top: 0; background: var(--cartao);
+  }
+  .menu-fechar {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--borda);
+    background: var(--fundo2); color: var(--texto); font-size: 15px; cursor: pointer;
+  }
+  .menu-item {
+    width: 100%; text-align: left; white-space: nowrap; font-size: 15px;
+    padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,.05);
+    border-left: 3px solid transparent;
+  }
+  .menu-item.ativa {
+    color: var(--verde); border-bottom-color: rgba(255,255,255,.05);
+    border-left-color: var(--verde); background: rgba(34,197,94,.10);
+  }
+  .menu-overlay {
+    display: block; position: fixed; inset: 0; z-index: 55; background: rgba(2,6,14,.6);
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  .menu-overlay.aberto { opacity: 1; pointer-events: auto; }
 
   /* cabeçalho mais compacto */
   .logo-mini { font-size: 16px; }

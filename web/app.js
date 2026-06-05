@@ -221,12 +221,20 @@ async function atualizarStatus() {
   } catch (e) {}
 }
 
+// ===================== Menu lateral (gaveta no celular) =====================
+function abrirMenu() { $("#menu").classList.add("aberto"); $("#menu-overlay").classList.add("aberto"); }
+function fecharMenu() { $("#menu").classList.remove("aberto"); $("#menu-overlay").classList.remove("aberto"); }
+if ($("#btn-menu")) $("#btn-menu").addEventListener("click", abrirMenu);
+if ($("#btn-menu-fechar")) $("#btn-menu-fechar").addEventListener("click", fecharMenu);
+if ($("#menu-overlay")) $("#menu-overlay").addEventListener("click", fecharMenu);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") fecharMenu(); });
+
 // ===================== Menu principal =====================
 document.querySelectorAll(".menu-item").forEach((mi) => {
   mi.addEventListener("click", () => {
     document.querySelectorAll(".menu-item").forEach((x) => x.classList.remove("ativa"));
     mi.classList.add("ativa");
-    try { mi.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" }); } catch (e) {}  // celular: centraliza a aba tocada
+    fecharMenu();                 // fecha a gaveta ao escolher uma aba (celular)
     const secao = mi.dataset.secao;
     $("#secao-agenda").classList.toggle("hidden", secao !== "agenda");
     $("#secao-aovivo").classList.toggle("hidden", secao !== "aovivo");
