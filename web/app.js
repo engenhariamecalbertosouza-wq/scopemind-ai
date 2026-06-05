@@ -500,11 +500,29 @@ function renderFolders(container, jogos, abertasSet, abrirForcado) {
 function renderAgenda() {
   const termo = $("#busca").value.trim().toLowerCase();
   const ligaFiltro = $("#filtro-liga").value;
-  let jogos = JOGOS.filter((j) => !ehFim(j.status) && !ehVivo(j.status));   // Agenda = só jogos a começar (ao vivo vai pro módulo Ao Vivo)
+  const base = JOGOS.filter((j) => !ehFim(j.status) && !ehVivo(j.status));   // Agenda = só jogos a começar (ao vivo vai pro módulo Ao Vivo)
+  let jogos = base;
   if (ligaFiltro) jogos = jogos.filter((j) => j.league === ligaFiltro);
   if (termo) jogos = jogos.filter((j) =>
     (j.home + " " + j.away + " " + j.league + " " + (j.country || "")).toLowerCase().includes(termo));
+  // Se um FILTRO/BUSCA/FAVORITOS escondeu todos os jogos (mas a agenda TEM jogos),
+  // avisa de forma clara — senão o cliente acha que o app "não tem jogos".
+  const finais = SO_FAVORITOS ? jogos.filter(jogoTemFav) : jogos;
+  if (finais.length === 0 && base.length > 0 && (termo || ligaFiltro || SO_FAVORITOS)) {
+    $("#lista-jogos").innerHTML =
+      '<div class="vazio">🔍 <b>Nenhum jogo com o filtro/busca atual.</b><br>' +
+      'Mas a agenda tem <b>' + base.length + '</b> jogo(s)! É só limpar pra ver todos:' +
+      '<br><button class="btn-primario btn-limpar-filtros" onclick="limparFiltrosAgenda()">🔄 Limpar filtros e ver todos os jogos</button></div>';
+    return;
+  }
   renderFolders($("#lista-jogos"), jogos, ABERTAS, !!termo || !!ligaFiltro);
+}
+function limparFiltrosAgenda() {
+  if ($("#busca")) $("#busca").value = "";
+  if ($("#filtro-liga")) $("#filtro-liga").value = "";
+  SO_FAVORITOS = false;
+  if ($("#btn-favoritos")) $("#btn-favoritos").classList.remove("ativo");
+  renderAgenda();
 }
 
 async function carregarEncerrados() {

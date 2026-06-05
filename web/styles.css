@@ -277,6 +277,7 @@ main { padding: 12px 22px 60px; max-width: 1200px; margin: 0 auto; }
 }
 .btn-hamburguer:hover { background: var(--cartao2); }
 .menu-cab, .menu-fechar, .menu-overlay, .menu-usuario { display: none; }
+.btn-limpar-filtros { display: inline-block; width: auto; max-width: 300px; margin-top: 14px; padding: 11px 18px; }
 
 /* ---------------- DETALHES DO JOGO ---------------- */
 .det-info { margin: 6px 0 16px; }
