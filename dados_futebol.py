@@ -252,7 +252,9 @@ def _fixtures_do_dia(data_iso, chave):
         idade = datetime.datetime.now().timestamp() - os.path.getmtime(cache)
         # hoje vale 10 min (poupa cota); outros dias valem o dia inteiro
         valido = (data_iso != hoje_iso) or (idade < 600)
-        if valido and cache_jogos is not None:
+        # So confia no cache se ele TIVER jogos. Cache vazio (ex.: zerado no passado
+        # por um estouro de cota) -> re-consulta para RECUPERAR os jogos/resultados.
+        if valido and cache_jogos:
             return cache_jogos, cache_status
 
     # precisa consultar a API
@@ -269,22 +271,16 @@ def _fixtures_do_dia(data_iso, chave):
     erros = dados.get("errors")
     if isinstance(erros, dict) and erros:
         txt = " ".join(str(v) for v in erros.values()).lower()
-        # COTA diaria esgotada -> NAO sobrescreve o cache; devolve o que ja tinha
-        if "request limit" in txt or "reached the request" in txt or ("limit" in txt and "request" in txt):
-            if cache_jogos is not None:
-                return cache_jogos, "cota"
-            return [], "cota"
-        # data fora da janela do plano gratuito -> e seguro cachear vazio
-        if "access to this date" in txt or "do not have access" in txt or "plan" in txt or "access" in txt:
-            try:
-                _salvar_cache_dia(cache, [], True)
-            except Exception:
-                pass
-            return [], "bloqueado"
-        # outro erro qualquer -> nao apaga o cache bom
-        if cache_jogos is not None:
-            return cache_jogos, cache_status
-        return [], ""
+        # IMPORTANTE: erro da API NUNCA apaga o cache bom. O app so consulta
+        # ontem/hoje/amanha (dentro do plano), entao quase todo erro aqui e COTA
+        # (mensagens como "upgrade your plan" / "request limit"). So marcamos
+        # "bloqueado" a mensagem ESPECIFICA de data fora da janela -- e mesmo
+        # assim NAO zeramos o cache (para nunca perder jogos/resultados ja salvos).
+        eh_bloqueio_data = ("access to this date" in txt or "do not have access to this date" in txt)
+        status = "bloqueado" if eh_bloqueio_data else "cota"
+        if cache_jogos:
+            return cache_jogos, status
+        return [], status
 
     # sucesso de verdade -> normaliza e cacheia
     jogos = [_normalizar(item) for item in dados.get("response", [])]
