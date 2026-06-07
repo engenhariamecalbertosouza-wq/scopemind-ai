@@ -80,11 +80,28 @@ Brasil, frases CURTAS e diretas (pouco texto, muita interpretacao). Esquema EXAT
     "primeiro_tempo": "<frase curta>",
     "risco_zebra": "Baixo|Moderado|Alto"
   },
+  "mercados": {
+    "gols": [
+      {"linha": "Mais de 1.5", "prob": <inteiro 0-100>},
+      {"linha": "Menos de 2.5", "prob": <inteiro 0-100>},
+      {"linha": "Menos de 3.5", "prob": <inteiro 0-100>}
+    ],                                  // 3 a 6 linhas de gols mais relevantes (entre 0.5/1.5/2.5/3.5/4.5)
+    "ambas_marcam_sim": <inteiro 0-100>,
+    "escanteios": {"faixa": "<ex: 8 a 11>", "linha": "<ex: Mais de 7.5>", "prob": <inteiro 0-100>},
+    "vence_sem_sofrer": {"time": "<time com mais chance de vencer SEM sofrer gol, ou ''>", "prob": <inteiro 0-100>},
+    "placares": [
+      {"placar": "1x0", "prob": <inteiro 0-100>},
+      {"placar": "2x1", "prob": <inteiro 0-100>},
+      {"placar": "1x1", "prob": <inteiro 0-100>}
+    ]                                   // 3 placares mais provaveis com % (mercado de ALTO risco)
+  },
   "detalhes": "<markdown OPCIONAL e enxuto (ate ~8 topicos curtos) para quem quiser aprofundar: tatica, elenco, motivacao, historico e fatores externos. Use '## Titulo' e '- topico'. Sem prometer resultado.>"
 }
 
 Garanta que prob_casa + prob_empate + prob_fora ~= 100 e que "prognostico"/"favorito" sejam coerentes
-com a maior probabilidade. Responda APENAS o JSON."""
+com a maior probabilidade. Em "mercados", de probabilidades REALISTAS (0-100) coerentes com a leitura do
+jogo (ex.: se a tendencia e de poucos gols, "Menos de 2.5" alto e "Mais de 2.5" baixo); placares exatos
+sao mercado de ALTO risco (probabilidades baixas). NUNCA prometa resultado. Responda APENAS o JSON."""
 
 
 def _montar_mensagem(partida, contexto):
@@ -220,6 +237,28 @@ def _saneia(dados):
             a["prob_gol"] = _int(a.get("prob_gol"))
     if not isinstance(dados.get("indicadores"), dict):
         dados["indicadores"] = {}
+    # MERCADOS (Radar de Oportunidades): garante estrutura e numeros validos
+    m = dados.get("mercados")
+    if not isinstance(m, dict):
+        m = {}
+    if not isinstance(m.get("gols"), list):
+        m["gols"] = []
+    for g in m["gols"]:
+        if isinstance(g, dict):
+            g["prob"] = _int(g.get("prob"))
+    m["ambas_marcam_sim"] = _int(m.get("ambas_marcam_sim"))
+    esc = m.get("escanteios") if isinstance(m.get("escanteios"), dict) else {}
+    esc["prob"] = _int(esc.get("prob"))
+    m["escanteios"] = esc
+    vss = m.get("vence_sem_sofrer") if isinstance(m.get("vence_sem_sofrer"), dict) else {}
+    vss["prob"] = _int(vss.get("prob"))
+    m["vence_sem_sofrer"] = vss
+    if not isinstance(m.get("placares"), list):
+        m["placares"] = []
+    for p in m["placares"]:
+        if isinstance(p, dict):
+            p["prob"] = _int(p.get("prob"))
+    dados["mercados"] = m
     return dados
 
 
