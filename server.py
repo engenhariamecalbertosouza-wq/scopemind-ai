@@ -165,13 +165,22 @@ def _pode_chat(u):
 
 
 def _limite_gratis(cfg):
-    """Quantas analises gratis cada cliente comum tem. O admin define pela
-    engrenagem (config.json); se nao definiu, usa a variavel de ambiente; senao, 3."""
+    """Analises avulsas gratis do cliente COMUM (pos-trial). Novo modelo: 0 — o
+    acesso gratis e o TRIAL de VIP por alguns dias apos o cadastro; depois disso
+    so VIP. (Admin ainda pode definir um valor na engrenagem se quiser.)"""
     v = cfg.get("limite_analises_gratis")
     if v is None or v == "":
-        v = os.environ.get("LIMITE_ANALISES_GRATIS", "3")
+        v = os.environ.get("LIMITE_ANALISES_GRATIS", "0")
     try:
         return max(0, int(v))
+    except Exception:
+        return 0
+
+
+def _trial_dias():
+    """Dias de VIP GRATIS que o cliente ganha ao se cadastrar (trial)."""
+    try:
+        return max(1, int(os.environ.get("TRIAL_DIAS", "3")))
     except Exception:
         return 3
 
@@ -218,6 +227,7 @@ def _ativar_vip_usuario(usuario_key):
     cfg = carregar_config()
     alvo["vip"] = True
     alvo["vip_ate"] = time.time() + _vip_dias(cfg) * 86400
+    alvo["trial"] = False    # agora e VIP PAGO (nao mais teste)
     salvar_config(raw)
     return True
 
@@ -654,14 +664,16 @@ class Handler(BaseHTTPRequestHandler):
         salt = secrets.token_hex(8)
         usuarios[email] = {
             "salt": salt, "hash": _hash_senha(senha, salt), "role": "cliente",
-            "nome": nome, "email": email, "ip": ip, "analises_usadas": 0,
+            "nome": nome, "email": email, "ip": ip,
+            # TRIAL: ganha VIP completo gratis por _trial_dias() dias apos o cadastro
+            "vip": True, "vip_ate": time.time() + _trial_dias() * 86400, "trial": True,
             "criado_em": time.strftime("%d/%m/%Y %H:%M"),
         }
         salvar_config(raw)
         cfg = carregar_config()
-        limite = _limite_gratis(cfg)
         self._json({"ok": True, "token": gerar_token(cfg, email), "usuario": nome,
-                    "role": "cliente", "vip": False, "analises_restantes": limite, "jogos_abertos": []})
+                    "role": "cliente", "vip": True, "trial": True, "trial_dias": _trial_dias(),
+                    "jogos_abertos": []})
 
     def _configurar(self):
         cfg = carregar_config()
@@ -725,7 +737,11 @@ class Handler(BaseHTTPRequestHandler):
         abertos = list(u.get("jogos_abertos", []))
         jogo_novo = chave not in abertos
         if cliente_limitado and jogo_novo and len(abertos) >= limite_gratis:
-            self._json({"erro": "Você já usou suas %d análises grátis. Vire membro VIP para liberar análises ilimitadas." % limite_gratis}, 402)
+            if limite_gratis <= 0:
+                msg = "Seu período de teste VIP terminou. Ative o VIP para continuar com acesso total às análises."
+            else:
+                msg = "Você já usou suas %d análises grátis. Vire membro VIP para acesso ilimitado." % limite_gratis
+            self._json({"erro": msg}, 402)
             return
 
         if reaproveitar:
@@ -1097,6 +1113,7 @@ class Handler(BaseHTTPRequestHandler):
         u = cfg.get("usuarios", {}).get(usuario, {})
         admin = _eh_admin(u)
         vip = _vip_valido(u)
+        is_trial = bool(u.get("trial")) and vip and not admin   # VIP de TESTE (grátis)
         ate = u.get("vip_ate")
         dias_rest = None
         data_fim = None
@@ -1114,15 +1131,14 @@ class Handler(BaseHTTPRequestHandler):
             "admin": admin,
             "role": "admin" if admin else ("vip" if vip else "cliente"),
             "vip": vip,
-            "vip_dias_total": _vip_dias(cfg),
+            "trial": is_trial,
+            "vip_dias_total": (_trial_dias() if is_trial else _vip_dias(cfg)),
             "vip_dias_restantes": dias_rest,
             "vip_ate_data": data_fim,
             "pode_trocar_senha": (not admin),
             "criado_em": u.get("criado_em", ""),
-            "jogos_abertos": list(u.get("jogos_abertos", [])),  # análises já compradas pelo cliente
+            "jogos_abertos": list(u.get("jogos_abertos", [])),
         }
-        if (not admin) and (not vip):
-            resp["analises_restantes"] = max(0, _limite_gratis(cfg) - len(u.get("jogos_abertos", [])))
         self._json(resp)
 
     def _trocar_senha(self):

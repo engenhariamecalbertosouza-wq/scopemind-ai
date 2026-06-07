@@ -33,7 +33,7 @@
         <input id="cad-email" type="email" placeholder="seu@email.com" />
         <label>Senha</label>
         <input id="cad-senha" type="password" placeholder="crie uma senha" />
-        <button type="submit" class="btn-primario">Criar conta — 3 análises grátis 🎁</button>
+        <button type="submit" class="btn-primario">Criar conta — 3 dias de VIP grátis 🎁</button>
         <p id="erro-cadastro" class="erro"></p>
       </form>
       <p class="troca-form hidden" id="wrap-ir-login"><a id="ir-login">← Já tenho conta</a></p>
@@ -462,10 +462,10 @@
         <option value="claude-haiku-4-5-20251001">Haiku 4.5 — mais rápido/barato</option>
       </select>
 
-      <label>🎟️ Análises grátis por cliente</label>
-      <input id="cfg-limite" type="number" min="0" step="1" placeholder="3" />
-      <p class="aviso-pequeno">Quantas análises um cliente comum pode fazer <b>de graça</b> antes de precisar virar VIP.
-        Vale para novos clientes e ajusta o saldo dos atuais.</p>
+      <label>🎟️ Análises avulsas grátis por cliente</label>
+      <input id="cfg-limite" type="number" min="0" step="1" placeholder="0" />
+      <p class="aviso-pequeno">Deixe <b>0</b> — o acesso grátis agora é o <b>teste VIP de 3 dias</b> após o cadastro.
+        (Este campo só existe se um dia você quiser dar análises avulsas grátis ao cliente comum.)</p>
 
       <label>⏳ Duração do VIP (dias)</label>
       <input id="cfg-vipdias" type="number" min="1" step="1" placeholder="30" />

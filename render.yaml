@@ -27,7 +27,9 @@ services:
       - key: MAX_ANALISES_DIA
         value: "30"
       - key: LIMITE_ANALISES_GRATIS
-        value: "3"
+        value: "0"                      # 0 = acesso gratis e o trial VIP (abaixo)
+      - key: TRIAL_DIAS
+        value: "3"                      # dias de VIP GRATIS apos o cadastro
       - key: APP_SECRET
         generateValue: true             # a Render gera 1 vez e mantem (logins estaveis)
       # ---- Pagamentos / VIP automatico (Mercado Pago) ----

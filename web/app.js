@@ -23,6 +23,7 @@ let REPORTS_SET = new Set();
 let timerCarregando = null;
 let prepTimer = null;         // cronômetro dramático do cliente (30s)
 let VIP = localStorage.getItem("vip") === "1";
+let TRIAL = localStorage.getItem("trial") === "1";   // VIP de teste (grátis)
 let NOME = localStorage.getItem("nome") || "";
 let MEUS_JOGOS = new Set(JSON.parse(localStorage.getItem("meus_jogos") || "[]")); // jogos que o cliente já analisou (comprou)
 let timerChat = null;
@@ -94,6 +95,8 @@ function aplicarSessao(d) {
   TOKEN = d.token || "";
   ROLE = d.role || "admin";
   VIP = !!d.vip;
+  TRIAL = !!d.trial;
+  localStorage.setItem("trial", TRIAL ? "1" : "0");
   NOME = d.usuario || "";
   ANALISES_REST = (d.analises_restantes === undefined ? null : d.analises_restantes);
   localStorage.setItem("token", TOKEN);
@@ -119,7 +122,7 @@ function aplicarPapel() {
   const b = $("#badge-cliente");
   b.className = "badge-cliente";
   if (cliente && VIP) {
-    b.innerHTML = '<span class="unl-inf">∞</span> UNLIMITED';
+    b.innerHTML = TRIAL ? "🎁 Teste VIP" : '<span class="unl-inf">∞</span> UNLIMITED';
     b.classList.add("badge-unlimited");
   } else if (cliente && ANALISES_REST !== null) {
     b.textContent = "🎟️ " + ANALISES_REST + " análise(s) grátis";
@@ -157,9 +160,9 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
   } catch (err) { $("#erro-cadastro").textContent = err.message; }
 });
 function sair() {
-  TOKEN = ""; ROLE = "admin"; ANALISES_REST = null; VIP = false; NOME = ""; MEUS_JOGOS = new Set();
+  TOKEN = ""; ROLE = "admin"; ANALISES_REST = null; VIP = false; TRIAL = false; NOME = ""; MEUS_JOGOS = new Set();
   pararChat(); pararAoVivo(); pararAgendaAuto();
-  localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("rest"); localStorage.removeItem("vip"); localStorage.removeItem("nome"); localStorage.removeItem("meus_jogos");
+  localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("rest"); localStorage.removeItem("vip"); localStorage.removeItem("trial"); localStorage.removeItem("nome"); localStorage.removeItem("meus_jogos");
   if ($("#saudacao")) $("#saudacao").textContent = "";
   $("#tela-app").classList.add("hidden"); $("#tela-login").classList.remove("hidden");
 }
@@ -1516,11 +1519,16 @@ $("#com-admin-exp-palpites").addEventListener("click", () => comExportar("palpit
 async function carregarConta() {
   try {
     const d = await api("/api/conta");
+    // sincroniza o estado real (ex.: teste VIP expirou) e atualiza o badge do topo
+    VIP = !!d.vip; TRIAL = !!d.trial;
+    localStorage.setItem("vip", VIP ? "1" : "0"); localStorage.setItem("trial", TRIAL ? "1" : "0");
+    if (typeof aplicarPapel === "function") aplicarPapel();
     $("#conta-nome").textContent = d.nome || d.usuario || "—";
     $("#conta-email").textContent = d.email || "";
     $("#conta-avatar").textContent = ((d.nome || "?").trim().charAt(0) || "?").toUpperCase();
     let badge;
     if (d.admin) badge = '<span class="conta-tag tag-admin">👑 Administrador</span>';
+    else if (d.vip && d.trial) badge = '<span class="conta-tag tag-vip">🎁 Teste VIP grátis</span>';
     else if (d.vip) badge = '<span class="conta-tag tag-vip"><span class="unl-inf">∞</span> UNLIMITED · VIP</span>';
     else badge = '<span class="conta-tag tag-free">🎟️ Plano grátis</span>';
     $("#conta-badge").innerHTML = badge;
@@ -1537,23 +1545,34 @@ function renderContaVip(d) {
     return '<h3>👑 Acesso de administrador</h3>' +
       '<p class="aviso-pequeno">Você tem acesso <b>total</b> ao sistema: análises ilimitadas, chat e o painel de administração.</p>';
   }
-  if (d.vip) {
+  if (d.vip && d.trial) {   // TESTE VIP grátis (trial após cadastro)
+    const total = d.vip_dias_total || 3;
+    const rest = (d.vip_dias_restantes == null) ? total : d.vip_dias_restantes;
+    const pct = Math.max(0, Math.min(100, Math.round(rest / total * 100)));
+    return '<h3>🎁 Teste VIP grátis — acesso <b>TOTAL</b></h3>' +
+      '<p class="aviso-pequeno">Você está no seu <b>período de teste</b> de VIP' +
+        (d.vip_ate_data ? ' (até <b>' + esc(d.vip_ate_data) + '</b>)' : '') +
+        ': Radar completo, análises ilimitadas e chat. Aproveite e assine para não perder o acesso! 🚀</p>' +
+      '<div class="vip-bar"><div class="vip-bar-fill' + (rest <= 1 ? " vip-bar-fill-baixo" : "") + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="vip-dias"><b>' + rest + '</b> de ' + total + ' dias de teste restantes</div>' +
+      '<button class="btn-primario" style="margin-top:12px" onclick="irParaPagamento()">⭐ Assinar VIP e continuar com tudo</button>';
+  }
+  if (d.vip) {   // VIP pago
     const total = d.vip_dias_total || 30;
     const rest = (d.vip_dias_restantes == null) ? total : d.vip_dias_restantes;
     const pct = Math.max(0, Math.min(100, Math.round(rest / total * 100)));
     const baixo = rest <= 5 ? " vip-bar-fill-baixo" : "";
     const fim = d.vip_ate_data ? (' · vence em <b>' + esc(d.vip_ate_data) + '</b>') : '';
     return '<h3>⭐ Você é VIP — análises <b>ILIMITADAS</b></h3>' +
-      '<p class="aviso-pequeno">Seu VIP dura <b>' + total + ' dias</b>' + fim +
-        '. Quando a barra zerar, é só renovar com o suporte. 🚀</p>' +
+      '<p class="aviso-pequeno">Seu VIP dura <b>' + total + ' dias</b>' + fim + '. 🚀</p>' +
       '<div class="vip-bar"><div class="vip-bar-fill' + baixo + '" style="width:' + pct + '%"></div></div>' +
       '<div class="vip-dias"><b>' + rest + '</b> de ' + total + ' dias restantes</div>' +
-      (rest <= 5 ? '<a class="btn-wpp" style="margin-top:12px" target="_blank" rel="noopener" href="https://wa.me/5582920012133?text=Ola%2C%20quero%20renovar%20meu%20VIP%20no%20ScopeMind%20AI.">💬 Renovar VIP</a>' : '');
+      (rest <= 5 ? '<button class="btn-primario" style="margin-top:12px" onclick="irParaPagamento()">🔄 Renovar VIP</button>' : '');
   }
-  const rest = (d.analises_restantes == null) ? "" : (' Você tem <b>' + d.analises_restantes + '</b> análise(s) grátis restantes.');
-  return '<h3>🎟️ Plano grátis</h3>' +
-    '<p class="aviso-pequeno">Você ainda não é VIP.' + rest +
-      ' Vire <b>VIP</b> para ter análises <b>ilimitadas</b> e acesso ao <b>Chat ao vivo</b>.</p>' +
+  // Pós-trial (acesso grátis = só o Radar; detalhes e chat são VIP)
+  return '<h3>🎟️ Acesso grátis (Radar)</h3>' +
+    '<p class="aviso-pequeno">Seu teste VIP terminou. Você continua vendo o <b>Radar de Oportunidades</b>, ' +
+      'mas as <b>análises completas</b> e o <b>Chat ao vivo</b> são exclusivos do VIP. Ative para ter tudo de volta.</p>' +
     '<button class="btn-primario" onclick="irParaPagamento()">⭐ Ativar VIP agora</button>';
 }
 
@@ -1570,7 +1589,7 @@ function irParaPagamento() {
   }, 450);
 }
 function mostrarOfertaVip(msg) {
-  if (typeof toast === "function") toast(msg || "Suas rodadas gratuitas acabaram. Ative o VIP para acesso ilimitado.");
+  if (typeof toast === "function") toast(msg || "Seu teste VIP terminou. Ative o VIP para continuar com acesso total.");
   irParaPagamento();
 }
 
