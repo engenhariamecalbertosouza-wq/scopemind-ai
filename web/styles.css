@@ -384,6 +384,55 @@ main { padding: 12px 22px 60px; max-width: 1200px; margin: 0 auto; }
 .card-resumo.cr-fim .cr-num { color: var(--verde); }
 .card-resumo.cr-prox .cr-num { color: var(--amarelo); }
 .card-resumo.cr-exato .cr-num { color: var(--azul); }
+
+/* ================= RADAR DE OPORTUNIDADES ================= */
+.radar-intro { margin: 4px 0 14px; }
+.radar-titulo { font-size: 22px; margin: 0 0 2px; }
+.radar-sub { color: var(--texto-fraco); font-size: 13px; margin: 0; }
+.rdr-sec { font-size: 14px; color: var(--texto-fraco); margin: 18px 4px 10px; letter-spacing: .3px; }
+.rdr-dest-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.rdr-dest { background: linear-gradient(180deg, var(--cartao), var(--cartao2)); border: 1px solid var(--borda);
+  border-radius: 14px; padding: 14px; cursor: pointer; transition: transform .15s, border-color .15s; }
+.rdr-dest:hover { border-color: var(--azul); transform: translateY(-2px); }
+.rdr-dest-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rdr-badge { font-size: 12px; font-weight: 800; color: var(--texto); }
+.rdr-badge.big { font-size: 20px; flex: 0 0 auto; }
+.rdr-conf { font-size: 11px; color: var(--azul); font-weight: 700; white-space: nowrap; }
+.rdr-dest-jogo { font-size: 14px; font-weight: 700; margin: 8px 0 2px; }
+.rdr-dest-jogo i, .rdr-card-jogo i { color: var(--texto-fraco); font-style: normal; font-size: 11px; }
+.rdr-dest-merc { font-size: 16px; font-weight: 800; color: var(--verde); margin-bottom: 6px; }
+.rdr-dest-rod { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.rdr-prob { font-size: 18px; font-weight: 800; }
+.rdr-bar { height: 7px; background: rgba(255,255,255,.08); border-radius: 5px; overflow: hidden; margin: 3px 0; }
+.rdr-bar-fill { height: 100%; background: linear-gradient(90deg, var(--azul), var(--verde)); border-radius: 5px; }
+.rdr-risco, .rdr-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--borda); }
+.r-baixo { color: var(--verde); border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.10); }
+.r-medio { color: var(--amarelo); border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.10); }
+.r-alto { color: var(--vermelho); border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.10); }
+.rdr-card { background: linear-gradient(180deg, var(--cartao), var(--cartao2)); border: 1px solid var(--borda);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+.rdr-card.forte { border-color: rgba(34,197,94,.35); }
+.rdr-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.rdr-card-jogo { font-size: 15.5px; font-weight: 800; }
+.rdr-card-meta { font-size: 12px; color: var(--texto-fraco); }
+.rdr-melhor { display: flex; align-items: center; gap: 12px; }
+.rdr-melhor-info { flex: 1; min-width: 0; }
+.rdr-melhor-sel { font-size: 15px; font-weight: 800; color: var(--verde); margin-bottom: 3px; }
+.rdr-melhor-num { font-size: 22px; font-weight: 800; flex: 0 0 auto; }
+.rdr-chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.rdr-chip { color: var(--texto-fraco); }
+.rdr-outras { margin-top: 10px; font-size: 12px; color: var(--texto-fraco); }
+.rdr-outras-lbl { font-weight: 700; }
+.rdr-tag { display: inline-block; background: var(--fundo2); border: 1px solid var(--borda); border-radius: 999px;
+  padding: 3px 9px; margin: 3px 4px 0 0; font-size: 11.5px; color: var(--texto); }
+.rdr-fraca { margin-top: 8px; font-size: 12px; color: var(--amarelo); }
+.rdr-ver { margin-top: 12px; width: 100%; background: var(--cartao2); border: 1px solid var(--borda); color: var(--texto);
+  padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 700; }
+.rdr-ver:hover { border-color: var(--azul); }
+.rdr-aguardando { color: var(--texto-fraco); font-size: 13px; }
+.rdr-analisar { margin-top: 10px; width: 100%; background: linear-gradient(90deg, var(--azul), var(--verde)); color: #04130b;
+  border: 0; padding: 11px; border-radius: 10px; cursor: pointer; font-weight: 800; }
+.rdr-analisar:hover { filter: brightness(1.08); }
 .aviso-plano { color: var(--amarelo); font-size: 12.5px; }
 
 /* status do jogo no cartao */

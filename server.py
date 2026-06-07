@@ -43,6 +43,7 @@ import relatorios       # noqa: E402
 import chat             # noqa: E402
 import comunidade       # noqa: E402
 import pagamentos       # noqa: E402
+import radar            # noqa: E402
 
 
 # ----------------------------------------------------------------------------
@@ -363,6 +364,43 @@ class Handler(BaseHTTPRequestHandler):
         if rota == "/api/mp/webhook":
             self._json({"ok": True})   # MP as vezes faz um GET de teste
             return
+        if rota == "/api/radar":
+            # Radar de Oportunidades: monta a curadoria a partir das analises JA
+            # salvas (custo ZERO — nao chama IA nem analisa nada aqui).
+            if not token_valido(cfg, self._token()):
+                self._json({"erro": "Nao autorizado."}, 401)
+                return
+            periodo = self._query().get("periodo", "hoje")
+            try:
+                jogos, modo, aviso = dados_futebol.listar_jogos(periodo, cfg)
+            except Exception as e:
+                self._json({"erro": "Nao consegui buscar os jogos: %s" % e}, 500)
+                return
+            jogos_raw = list(jogos)   # lista completa (p/ o front montar o resumo sem 2a chamada)
+            # so jogos A COMECAR (ao vivo e encerrados ficam de fora do radar)
+            def _a_comecar(j):
+                s = (j.get("status", "") or "").lower()
+                if "encerrad" in s:
+                    return False
+                return not any(t in s for t in ("tempo", "intervalo", "ao vivo", "prorrog", "penal"))
+            jogos = [j for j in jogos if _a_comecar(j)]
+            mapa = {}
+            try:
+                for r in relatorios.todos():
+                    mapa[r.get("chave")] = r.get("dados")
+            except Exception:
+                pass
+            itens = []
+            for j in jogos:
+                chave = relatorios.chave_do_jogo(j)
+                itens.append({"chave": chave, "jogo": j, "dados": mapa.get(chave)})
+            out = radar.montar(itens)
+            out["periodo"] = periodo
+            out["aviso"] = aviso
+            out["modo"] = modo
+            out["jogos_raw"] = jogos_raw
+            self._json(out)
+            return
         if rota == "/api/status":
             self._json({
                 "ao_vivo_dados": bool(cfg.get("football_api_key")),
@@ -400,10 +438,26 @@ class Handler(BaseHTTPRequestHandler):
             self._placar(cfg)
             return
         if rota == "/api/relatorios":
+            # lista (catalogo) de analises salvas — so admin (cliente usa /api/conta + /api/radar)
+            usuario = usuario_do_token(cfg, self._token())
+            u = cfg.get("usuarios", {}).get(usuario, {})
+            if not usuario or not _eh_admin(u):
+                self._json({"erro": "Apenas o administrador."}, 403)
+                return
             self._json({"relatorios": relatorios.listar()})
             return
         if rota == "/api/relatorio":
+            # análise COMPLETA: admin/VIP veem tudo; cliente comum só de jogo que já
+            # liberou (cota). Sem isso, o cliente leria qualquer análise de graça.
+            usuario = usuario_do_token(cfg, self._token())
+            if not usuario:
+                self._json({"erro": "Nao autorizado."}, 401)
+                return
+            u = cfg.get("usuarios", {}).get(usuario, {})
             chave = self._query().get("chave", "")
+            if not _eh_admin(u) and not _vip_valido(u) and chave not in (u.get("jogos_abertos") or []):
+                self._json({"erro": "Análise completa disponível só após liberar este jogo (cota) ou no plano VIP."}, 402)
+                return
             r = relatorios.obter(chave)
             if r:
                 self._json(r)

@@ -288,35 +288,115 @@ $("#btn-favoritos").addEventListener("click", () => {
 // ===================== AGENDA =====================
 async function carregarJogos(silencioso) {
   const lista = $("#lista-jogos");
-  if (!silencioso) { lista.innerHTML = '<div class="vazio">Carregando jogos…</div>'; $("#info-periodo").textContent = ""; }
+  if (!silencioso) { lista.innerHTML = '<div class="vazio">🛰️ Montando o radar…</div>'; $("#info-periodo").textContent = ""; }
   try {
-    const dados = await api("/api/jogos?periodo=" + PERIODO);
-    JOGOS = dados.jogos || [];
-    let info;
-    if (dados.modo === "demo") {
-      info = "🔸 <b>Modo demonstração</b> — jogos de exemplo. Cole a chave de dados (⚙️) para ver os jogos reais.";
-    } else {
-      const aComecar = JOGOS.filter((j) => !ehFim(j.status) && !ehVivo(j.status));
-      const nLigas = [...new Set(aComecar.map((j) => j.league).filter(Boolean))].length;
-      info = "<b>" + aComecar.length + "</b> jogo(s) a começar em <b>" + nLigas + "</b> campeonatos · 🔄 atualiza sozinho a cada 10 min (os ao vivo vão pro módulo Ao Vivo).";
-    }
-    if (dados.aviso) info += '<br><span class="aviso-plano">📌 ' + esc(dados.aviso) + "</span>";
-    $("#info-periodo").innerHTML = info;
+    // UMA chamada só (o /api/radar já traz a lista crua dos jogos + a curadoria)
+    const d = await api("/api/radar?periodo=" + PERIODO);
+    JOGOS = d.jogos_raw || [];
     renderResumo(JOGOS);
-    preencherFiltroLigas();
-    renderAgenda();
+    renderRadar(d);
     checkAlertas();
   } catch (err) {
     if (!silencioso) {
       const rede = err instanceof TypeError;
       $("#lista-jogos").innerHTML = '<div class="vazio">' + (rede
         ? "⚠️ Sem conexão com o servidor. Confira se a janela preta (o servidor) está aberta e toque em ↻ Atualizar."
-        : "Erro ao carregar: " + err.message) + "</div>";
+        : "Erro ao carregar: " + esc(err.message)) + "</div>";
     }
   }
 }
 function ehVivo(s) { return /tempo|intervalo|vivo|prorrog|p[eê]naltis/i.test(s || ""); }
 function ehFim(s) { return /encerrado/i.test(s || ""); }
+// ===================== RADAR DE OPORTUNIDADES =====================
+const RDR_BADGE = { RESULTADO_FINAL: "⚽", MAIS_MENOS_GOLS: "📊", AMBAS_MARCAM: "🤝",
+  PROXIMO_MARCADOR: "🎯", PLACAR_EXATO: "🔢", VENCE_SEM_SOFRER: "🧤", ESCANTEIOS: "🚩" };
+function rdrRiscoClasse(r) { return r === "Baixo" ? "r-baixo" : (r === "Alto" ? "r-alto" : "r-medio"); }
+function rdrBarra(prob) { return '<div class="rdr-bar"><div class="rdr-bar-fill" style="width:' + Math.max(0, Math.min(100, prob)) + '%"></div></div>'; }
+
+async function carregarRadar() {
+  const cont = $("#lista-jogos"), dest = $("#radar-destaques");
+  if (!cont) return;
+  if (dest) dest.innerHTML = "";
+  cont.innerHTML = '<div class="vazio">🛰️ Montando o radar…</div>';
+  try {
+    const d = await api("/api/radar?periodo=" + PERIODO);
+    renderRadar(d);
+  } catch (err) {
+    cont.innerHTML = '<div class="vazio">Erro ao montar o radar: ' + esc(err.message) + "</div>";
+  }
+}
+function renderRadar(d) {
+  const cont = $("#lista-jogos"), dest = $("#radar-destaques"), info = $("#info-periodo");
+  const jogos = d.jogos || [];
+  if (info) info.innerHTML = "🛰️ <b>" + (d.analisados || 0) + "</b> de <b>" + (d.total || 0) +
+    "</b> jogos analisados · <b>" + (d.fortes || 0) + "</b> com oportunidade forte" +
+    (d.aviso ? '<br><span class="aviso-plano">📌 ' + esc(d.aviso) + "</span>" : "");
+  if (dest) {
+    const ds = d.destaques || [];
+    dest.innerHTML = ds.length
+      ? '<h3 class="rdr-sec">🔥 Destaques do Dia</h3><div class="rdr-dest-grid">' + ds.map(rdrCardDestaque).join("") + "</div>"
+      : "";
+  }
+  if (!jogos.length) { cont.innerHTML = '<div class="vazio">Nenhum jogo para este período.</div>'; return; }
+  cont.innerHTML = '<h3 class="rdr-sec">📋 Todos os jogos</h3>' + jogos.map(rdrCardJogo).join("");
+}
+function rdrCardDestaque(o) {
+  return '<div class="rdr-dest" data-chave="' + esc(o.chave) + '">' +
+    '<div class="rdr-dest-top"><span class="rdr-badge">' + (RDR_BADGE[o.mercado] || "•") + " " + esc(o.titulo) + "</span>" +
+      '<span class="rdr-conf">Conf ' + o.confianca + "/100</span></div>" +
+    '<div class="rdr-dest-jogo">' + esc(o.home) + ' <i>x</i> ' + esc(o.away) + "</div>" +
+    '<div class="rdr-dest-merc">' + esc(o.selecao) + "</div>" + rdrBarra(o.prob) +
+    '<div class="rdr-dest-rod"><span class="rdr-prob">' + o.prob + "%</span>" +
+      '<span class="rdr-risco ' + rdrRiscoClasse(o.risco) + '">Risco ' + esc(o.risco) + "</span></div></div>";
+}
+function rdrCardJogo(j) {
+  const meta = esc(nomeLiga(j.league || "")) + (j.time ? " • " + esc(j.time) : "");
+  let corpo;
+  if (j.analisado && j.melhor) {
+    const m = j.melhor;
+    const outras = (j.mercados || []).filter((o) => o !== m && o.mercado !== m.mercado).slice(0, 3)
+      .map((o) => '<span class="rdr-tag">' + (RDR_BADGE[o.mercado] || "•") + " " + esc(o.selecao) + " " + o.prob + "%</span>").join("");
+    const fraca = j.estado === "fraca" ? '<div class="rdr-fraca">Sem leitura forte — use só como referência.</div>' : "";
+    corpo =
+      '<div class="rdr-melhor"><span class="rdr-badge big">' + (RDR_BADGE[m.mercado] || "•") + "</span>" +
+        '<div class="rdr-melhor-info"><div class="rdr-melhor-sel">' + esc(m.selecao) + "</div>" + rdrBarra(m.prob) + "</div>" +
+        '<div class="rdr-melhor-num">' + m.prob + "%</div></div>" +
+      '<div class="rdr-chips"><span class="rdr-chip">Conf ' + j.confianca + "/100</span>" +
+        '<span class="rdr-chip ' + rdrRiscoClasse(m.risco) + '">Risco ' + esc(m.risco) + "</span></div>" +
+      (outras ? '<div class="rdr-outras"><span class="rdr-outras-lbl">Outras leituras:</span> ' + outras + "</div>" : "") +
+      fraca +
+      '<button class="rdr-ver" data-chave="' + esc(j.chave) + '">Ver detalhes ›</button>';
+  } else {
+    corpo = '<div class="rdr-aguardando">⏳ Aguardando análise</div>' +
+      '<button class="rdr-analisar" data-chave="' + esc(j.chave) + '">🔮 Analisar este jogo</button>';
+  }
+  return '<div class="rdr-card ' + (j.estado || "") + '"><div class="rdr-card-head">' +
+    '<div class="rdr-card-jogo">' + esc(j.home) + ' <i>x</i> ' + esc(j.away) + "</div>" +
+    '<div class="rdr-card-meta">' + meta + "</div></div>" + corpo + "</div>";
+}
+function abrirDetalhesRadar(chave) {
+  if (ROLE === "admin") { verSalvo(chave); return; }   // admin vê grátis
+  const j = JOGOS.find((x) => chaveJogo(x) === chave);
+  // CLIENTE sempre pelo fluxo de cota (reaproveita se já comprou). NUNCA verSalvo
+  // (que mostraria a análise completa de graça). O backend também barra isso.
+  if (j) rodarAnaliseCliente(j);
+  else toast("Atualize a lista (↻) e toque de novo para ver os detalhes.");
+}
+$("#lista-jogos").addEventListener("click", (e) => {
+  const ver = e.target.closest(".rdr-ver");
+  if (ver) { abrirDetalhesRadar(ver.dataset.chave); return; }
+  const an = e.target.closest(".rdr-analisar");
+  if (an) {
+    const j = JOGOS.find((x) => chaveJogo(x) === an.dataset.chave);
+    if (!j) { toast("Jogo não encontrado para analisar."); return; }
+    if (ehCliente()) rodarAnaliseCliente(j); else rodarAnalise(j);
+  }
+});
+$("#radar-destaques").addEventListener("click", (e) => {
+  const card = e.target.closest(".rdr-dest");
+  if (card && card.dataset.chave) abrirDetalhesRadar(card.dataset.chave);
+});
+
 function renderResumo(jogos) {
   const ativos = jogos.filter((j) => !ehFim(j.status));
   const vivo = ativos.filter((j) => ehVivo(j.status)).length;
@@ -437,7 +517,7 @@ function estrelaTime(t) {
   return '<span class="estrela estrela-time ' + (on ? "on" : "") + '" data-time="' + esc(t) + '">' + (on ? "★" : "☆") + "</span>";
 }
 function reRenderAtual() {
-  if (!$("#secao-agenda").classList.contains("hidden")) renderAgenda();
+  if (!$("#secao-agenda").classList.contains("hidden")) carregarRadar();
   else if (!$("#secao-aovivo").classList.contains("hidden")) renderFolders($("#lista-aovivo"), LISTA_AOVIVO, ABERTAS_AV, true);
   else if (!$("#secao-encerrados").classList.contains("hidden")) renderFolders($("#lista-encerrados"), LISTA_ENC, ABERTAS_ENC, false);
 }

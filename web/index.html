@@ -71,7 +71,7 @@
           <div class="mu-status" id="mu-status"></div>
         </div>
       </div>
-      <button class="menu-item ativa" data-secao="agenda">📅 Agenda de jogos</button>
+      <button class="menu-item ativa" data-secao="agenda">🎯 Radar de Oportunidades</button>
       <button class="menu-item" data-secao="aovivo">🔴 Ao Vivo</button>
       <button class="menu-item" data-secao="encerrados">✅ Encerrados</button>
       <button class="menu-item" data-secao="placar">📈 Placar de Acertos da IA</button>
@@ -89,22 +89,22 @@
         <button class="aba" data-periodo="amanha">Amanhã <span class="aba-data" id="data-amanha"></span></button>
         <button id="btn-atualizar" class="btn-atualizar" title="Atualizar agenda">↻ Atualizar</button>
       </nav>
-      <div class="barra-ferramentas">
-        <input id="busca" type="text" placeholder="🔎 Buscar time ou campeonato..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <div class="barra-ferramentas hidden">
+        <input id="busca" type="text" autocomplete="off" />
         <select id="filtro-liga"><option value="">Todos os campeonatos</option></select>
-        <button id="btn-favoritos" class="btn-mini" title="Mostrar só meus favoritos">⭐ Favoritos</button>
-        <button id="btn-expandir" class="btn-mini" title="Abrir todas as pastas">⊞ Expandir</button>
-        <button id="btn-recolher" class="btn-mini" title="Fechar todas as pastas">⊟ Recolher</button>
-        <button id="btn-alertas" class="btn-mini" title="Avisar quando um jogo favorito vai começar">🔔 Alertas</button>
+        <button id="btn-favoritos" class="btn-mini">⭐ Favoritos</button>
+        <button id="btn-expandir" class="btn-mini">⊞ Expandir</button>
+        <button id="btn-recolher" class="btn-mini">⊟ Recolher</button>
+        <button id="btn-alertas" class="btn-mini">🔔 Alertas</button>
       </div>
       <main>
-        <div class="nota-confiabilidade">
-          📅 <b>Calendário focado em hoje e amanhã.</b> Mostramos só esses dois dias de propósito:
-          escalações, lesões e notícias mudam o tempo todo — quanto mais perto do jogo, mais
-          <b>confiável e atualizada</b> fica a análise dos nossos agentes.
+        <div class="radar-intro">
+          <h2 class="radar-titulo">🎯 Radar de Oportunidades</h2>
+          <p class="radar-sub">Análises automáticas dos jogos, organizadas por mercados, confiança e risco. <b>São probabilidades — nunca garantia de resultado.</b></p>
         </div>
         <div id="resumo" class="resumo"></div>
         <div id="info-periodo" class="info-periodo"></div>
+        <div id="radar-destaques"></div>
         <div id="lista-jogos"></div>
       </main>
     </section>
