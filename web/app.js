@@ -313,8 +313,23 @@ function ehFim(s) { return /encerrado/i.test(s || ""); }
 // ===================== RADAR DE OPORTUNIDADES =====================
 const RDR_BADGE = { RESULTADO_FINAL: "⚽", MAIS_MENOS_GOLS: "📊", AMBAS_MARCAM: "🤝",
   PROXIMO_MARCADOR: "🎯", PLACAR_EXATO: "🔢", VENCE_SEM_SOFRER: "🧤", ESCANTEIOS: "🚩" };
+// Etapa 3/4 + 5 + 6: grupos de mercado (abas e filtros)
+const RDR_GRUPOS = [
+  { id: "RESULTADO",  label: "⚽ Resultado",   mercados: ["RESULTADO_FINAL", "VENCE_SEM_SOFRER"] },
+  { id: "GOLS",       label: "📊 Gols",        mercados: ["MAIS_MENOS_GOLS", "AMBAS_MARCAM"] },
+  { id: "ESCANTEIOS", label: "🚩 Escanteios",  mercados: ["ESCANTEIOS"] },
+  { id: "MARCADORES", label: "🎯 Marcadores",  mercados: ["PROXIMO_MARCADOR"] },
+  { id: "PLACAR",     label: "🔢 Placar exato", mercados: ["PLACAR_EXATO"] },
+];
+function rdrGrupoDe(merc) {
+  const g = RDR_GRUPOS.find((x) => x.mercados.indexOf(merc) >= 0);
+  return g ? g.id : "";
+}
+let RADAR_DATA = null;   // guarda a última resposta do /api/radar (pra filtrar sem nova chamada)
+const RDR_FILTROS = { mercado: "", risco: "", forte: false, alta: false };
 function rdrRiscoClasse(r) { return r === "Baixo" ? "r-baixo" : (r === "Alto" ? "r-alto" : "r-medio"); }
 function rdrBarra(prob) { return '<div class="rdr-bar"><div class="rdr-bar-fill" style="width:' + Math.max(0, Math.min(100, prob)) + '%"></div></div>'; }
+function rdrFiltrosAtivos() { return !!(RDR_FILTROS.mercado || RDR_FILTROS.risco || RDR_FILTROS.forte || RDR_FILTROS.alta); }
 
 async function carregarRadar() {
   const cont = $("#lista-jogos"), dest = $("#radar-destaques");
@@ -323,26 +338,87 @@ async function carregarRadar() {
   cont.innerHTML = '<div class="vazio">🛰️ Montando o radar…</div>';
   try {
     const d = await api("/api/radar?periodo=" + PERIODO);
-    renderRadar(d);
+    RADAR_DATA = d;
+    renderRadar();
   } catch (err) {
     cont.innerHTML = '<div class="vazio">Erro ao montar o radar: ' + esc(err.message) + "</div>";
   }
 }
-function renderRadar(d) {
+
+// devolve a "leitura principal" a mostrar no card, respeitando o filtro de mercado
+function rdrOpDestaque(j) {
+  if (!j.analisado || !(j.mercados || []).length) return null;
+  if (RDR_FILTROS.mercado) {
+    const g = RDR_GRUPOS.find((x) => x.id === RDR_FILTROS.mercado);
+    const cand = (j.mercados || []).filter((o) => g && g.mercados.indexOf(o.mercado) >= 0);
+    if (!cand.length) return null;
+    return cand.reduce((a, b) => (b.value > a.value ? b : a));
+  }
+  return j.melhor || (j.mercados || [])[0] || null;
+}
+// aplica os filtros e devolve [{ j, op }] já filtrados
+function rdrFiltrar(jogos) {
+  const out = [];
+  for (const j of jogos) {
+    if (!j.analisado) continue;
+    if (RDR_FILTROS.forte && j.estado !== "forte") continue;
+    if (RDR_FILTROS.alta && (j.confianca || 0) < 80) continue;
+    const op = rdrOpDestaque(j);
+    if (!op) continue;
+    if (RDR_FILTROS.risco && op.risco !== RDR_FILTROS.risco) continue;
+    out.push({ j, op });
+  }
+  return out;
+}
+
+function renderRadar() {
+  const d = RADAR_DATA || {};
   const cont = $("#lista-jogos"), dest = $("#radar-destaques"), info = $("#info-periodo");
+  const barra = $("#radar-filtros");
   const jogos = d.jogos || [];
   if (info) info.innerHTML = "🛰️ <b>" + (d.analisados || 0) + "</b> de <b>" + (d.total || 0) +
     "</b> jogos analisados · <b>" + (d.fortes || 0) + "</b> com oportunidade forte" +
     (d.aviso ? '<br><span class="aviso-plano">📌 ' + esc(d.aviso) + "</span>" : "");
+
+  // barra de filtros só aparece quando há jogos analisados
+  if (barra) barra.classList.toggle("hidden", (d.analisados || 0) === 0);
+  const limpar = $("#rf-limpar"); if (limpar) limpar.classList.toggle("hidden", !rdrFiltrosAtivos());
+
+  const ativos = rdrFiltrosAtivos();
+  // Destaques do Dia: só sem filtros (com filtro, mostramos as seções filtradas)
   if (dest) {
-    const ds = d.destaques || [];
-    dest.innerHTML = ds.length
+    const ds = (d.destaques || []);
+    dest.innerHTML = (!ativos && ds.length)
       ? '<h3 class="rdr-sec">🔥 Destaques do Dia</h3><div class="rdr-dest-grid">' + ds.map(rdrCardDestaque).join("") + "</div>"
       : "";
   }
+
   if (!jogos.length) { cont.innerHTML = '<div class="vazio">Nenhum jogo para este período.</div>'; return; }
-  cont.innerHTML = '<h3 class="rdr-sec">📋 Todos os jogos</h3>' + jogos.map(rdrCardJogo).join("");
+
+  const filtrados = rdrFiltrar(jogos);
+  const fortes = filtrados.filter((x) => x.j.estado === "forte");
+  const fracas = filtrados.filter((x) => x.j.estado === "fraca");
+  const aguardando = ativos ? [] : jogos.filter((j) => !j.analisado);
+
+  if (ativos && !filtrados.length) {
+    cont.innerHTML = '<div class="vazio">Nenhum jogo bate com esse filtro. Toque em <b>✕ Limpar filtros</b>.</div>';
+    return;
+  }
+
+  let html = "";
+  const secao = (titulo, itens) => itens.length
+    ? '<h3 class="rdr-sec">' + titulo + ' <span class="rdr-sec-n">' + itens.length + "</span></h3>" +
+      itens.map((x) => rdrCardJogo(x.j, x.op)).join("")
+    : "";
+  html += secao("🔥 Oportunidades fortes", fortes);
+  html += secao("📊 Outras leituras", fracas);
+  if (aguardando.length) {
+    html += '<h3 class="rdr-sec">⏳ Aguardando análise <span class="rdr-sec-n">' + aguardando.length + "</span></h3>" +
+      aguardando.map((j) => rdrCardJogo(j, null)).join("");
+  }
+  cont.innerHTML = html || '<div class="vazio">Nenhum jogo para este período.</div>';
 }
+
 function rdrCardDestaque(o) {
   return '<div class="rdr-dest" data-chave="' + esc(o.chave) + '">' +
     '<div class="rdr-dest-top"><span class="rdr-badge">' + (RDR_BADGE[o.mercado] || "•") + " " + esc(o.titulo) + "</span>" +
@@ -352,11 +428,11 @@ function rdrCardDestaque(o) {
     '<div class="rdr-dest-rod"><span class="rdr-prob">' + o.prob + "%</span>" +
       '<span class="rdr-risco ' + rdrRiscoClasse(o.risco) + '">Risco ' + esc(o.risco) + "</span></div></div>";
 }
-function rdrCardJogo(j) {
+function rdrCardJogo(j, opForcado) {
   const meta = esc(nomeLiga(j.league || "")) + (j.time ? " • " + esc(j.time) : "");
   let corpo;
-  if (j.analisado && j.melhor) {
-    const m = j.melhor;
+  const m = opForcado || (j.analisado ? j.melhor : null);
+  if (j.analisado && m) {
     const outras = (j.mercados || []).filter((o) => o !== m && o.mercado !== m.mercado).slice(0, 3)
       .map((o) => '<span class="rdr-tag">' + (RDR_BADGE[o.mercado] || "•") + " " + esc(o.selecao) + " " + o.prob + "%</span>").join("");
     const fraca = j.estado === "fraca" ? '<div class="rdr-fraca">Sem leitura forte — use só como referência.</div>' : "";
@@ -377,14 +453,124 @@ function rdrCardJogo(j) {
     '<div class="rdr-card-jogo">' + esc(j.home) + ' <i>x</i> ' + esc(j.away) + "</div>" +
     '<div class="rdr-card-meta">' + meta + "</div></div>" + corpo + "</div>";
 }
+
+// -------- Etapa 6: DETALHES POR ABAS (modal) --------
+let RDR_MODAL_CHAVE = "";
+function rdrJogoPorChave(chave) {
+  return ((RADAR_DATA && RADAR_DATA.jogos) || []).find((j) => j.chave === chave) || null;
+}
 function abrirDetalhesRadar(chave) {
-  if (ROLE === "admin") { verSalvo(chave); return; }   // admin vê grátis
+  const j = rdrJogoPorChave(chave);
+  if (!j || !j.analisado || !(j.mercados || []).length) {
+    // sem leitura por mercado: cai no fluxo de análise completa
+    abrirAnaliseCompleta(chave);
+    return;
+  }
+  RDR_MODAL_CHAVE = chave;
+  rdrRenderModal(j);
+  $("#modal-radar").classList.remove("hidden");
+}
+function rdrOpLinha(o, j) {
+  let extra = "";
+  if (o.mercado === "RESULTADO_FINAL") {
+    const linha = (rot, v) => '<div class="rdr-ol-sub"><span>' + esc(rot) + "</span>" + rdrBarra(v || 0) +
+      '<b>' + (v || 0) + "%</b></div>";
+    extra = '<div class="rdr-ol-subs">' +
+      linha("Vitória " + (j.home || "Mandante"), o.prob_casa) +
+      linha("Empate", o.prob_empate) +
+      linha("Vitória " + (j.away || "Visitante"), o.prob_fora) + "</div>";
+  } else if (o.mercado === "MAIS_MENOS_GOLS" && (o.linhas || []).length > 1) {
+    extra = '<div class="rdr-ol-subs">' + o.linhas.map((l) =>
+      '<div class="rdr-ol-sub"><span>' + esc(l.linha) + " gols</span>" + rdrBarra(l.prob || 0) +
+      '<b>' + (l.prob || 0) + "%</b></div>").join("") + "</div>";
+  } else if (o.mercado === "PROXIMO_MARCADOR" && o.jogador_status) {
+    extra = '<div class="rdr-ol-tag">' + esc(o.jogador_status) + (o.jogador_time ? " · " + esc(o.jogador_time) : "") + "</div>";
+  } else if (o.mercado === "PLACAR_EXATO" && o.aviso) {
+    extra = '<div class="rdr-ol-aviso">' + esc(o.aviso) + "</div>";
+  }
+  return '<div class="rdr-ol">' +
+    '<div class="rdr-ol-top"><span class="rdr-ol-sel">' + (RDR_BADGE[o.mercado] || "•") + " " + esc(o.selecao) + "</span>" +
+      '<span class="rdr-ol-num">' + o.prob + "%</span></div>" +
+    rdrBarra(o.prob) +
+    '<div class="rdr-ol-chips"><span class="rdr-chip ' + rdrRiscoClasse(o.risco) + '">Risco ' + esc(o.risco) +
+      '</span><span class="rdr-chip">Valor ' + (o.value || 0) + "/100</span></div>" +
+    extra + "</div>";
+}
+function rdrRenderModal(j) {
+  const head = $("#rdr-modal-head"), tabs = $("#rdr-modal-tabs"), corpo = $("#rdr-modal-corpo");
+  const meta = esc(nomeLiga(j.league || "")) + (j.time ? " • " + esc(j.time) : "");
+  head.innerHTML =
+    '<div class="rdr-mh-jogo">' + esc(j.home) + ' <i>x</i> ' + esc(j.away) + "</div>" +
+    '<div class="rdr-mh-meta">' + meta + "</div>" +
+    '<div class="rdr-mh-chips"><span class="rdr-chip">Confiança ' + (j.confianca || 0) + "/100</span>" +
+      '<span class="rdr-chip ' + rdrRiscoClasse(j.risco) + '">Risco do jogo: ' + esc(j.risco || "—") + "</span>" +
+      '<span class="rdr-chip ' + (j.estado === "forte" ? "r-baixo" : "") + '">' +
+        (j.estado === "forte" ? "🔥 Oportunidade forte" : "Leitura de referência") + "</span></div>" +
+    (j.resumo ? '<div class="rdr-mh-resumo">“' + esc(j.resumo) + "”</div>" : "");
+
+  // só os grupos que têm oportunidades
+  const ops = j.mercados || [];
+  const presentes = RDR_GRUPOS.filter((g) => ops.some((o) => g.mercados.indexOf(o.mercado) >= 0));
+  const ativoIni = (j.melhor && rdrGrupoDe(j.melhor.mercado)) || (presentes[0] && presentes[0].id) || "";
+  tabs.innerHTML = presentes.map((g) =>
+    '<button class="rdr-tab' + (g.id === ativoIni ? " ativa" : "") + '" data-grupo="' + g.id + '">' + g.label + "</button>"
+  ).join("");
+  corpo.innerHTML = presentes.map((g) => {
+    const lista = ops.filter((o) => g.mercados.indexOf(o.mercado) >= 0)
+      .sort((a, b) => b.value - a.value);
+    return '<div class="rdr-tab-body' + (g.id === ativoIni ? " ativa" : "") + '" data-grupo="' + g.id + '">' +
+      lista.map((o) => rdrOpLinha(o, j)).join("") + "</div>";
+  }).join("");
+
+  // botão da análise completa (rótulo conforme o papel)
+  const btn = $("#rdr-modal-completa");
+  if (btn) btn.textContent = (ROLE === "admin") ? "🧠 Abrir análise completa" : "🔮 Ver análise completa";
+}
+
+// roteia para a análise completa (respeita cota/VIP no cliente; admin vê grátis)
+function abrirAnaliseCompleta(chave) {
+  if (ROLE === "admin") { verSalvo(chave); return; }
   const j = JOGOS.find((x) => chaveJogo(x) === chave);
   // CLIENTE sempre pelo fluxo de cota (reaproveita se já comprou). NUNCA verSalvo
   // (que mostraria a análise completa de graça). O backend também barra isso.
   if (j) rodarAnaliseCliente(j);
   else toast("Atualize a lista (↻) e toque de novo para ver os detalhes.");
 }
+
+// -------- filtros (etapa 5) --------
+function rdrSyncBotao(id, on) {
+  const b = $(id); if (!b) return;
+  b.dataset.on = on ? "1" : "0";
+  b.classList.toggle("ativo", !!on);
+}
+(function ligarFiltrosRadar() {
+  const sm = $("#rf-mercado"); if (sm) sm.addEventListener("change", () => { RDR_FILTROS.mercado = sm.value; renderRadar(); });
+  const sr = $("#rf-risco"); if (sr) sr.addEventListener("change", () => { RDR_FILTROS.risco = sr.value; renderRadar(); });
+  const bf = $("#rf-forte"); if (bf) bf.addEventListener("click", () => { RDR_FILTROS.forte = !RDR_FILTROS.forte; rdrSyncBotao("#rf-forte", RDR_FILTROS.forte); renderRadar(); });
+  const ba = $("#rf-alta"); if (ba) ba.addEventListener("click", () => { RDR_FILTROS.alta = !RDR_FILTROS.alta; rdrSyncBotao("#rf-alta", RDR_FILTROS.alta); renderRadar(); });
+  const bl = $("#rf-limpar"); if (bl) bl.addEventListener("click", () => {
+    RDR_FILTROS.mercado = ""; RDR_FILTROS.risco = ""; RDR_FILTROS.forte = false; RDR_FILTROS.alta = false;
+    if (sm) sm.value = ""; if (sr) sr.value = "";
+    rdrSyncBotao("#rf-forte", false); rdrSyncBotao("#rf-alta", false);
+    renderRadar();
+  });
+})();
+
+// abas do modal de detalhes
+const rdrTabsEl = $("#rdr-modal-tabs");
+if (rdrTabsEl) rdrTabsEl.addEventListener("click", (e) => {
+  const t = e.target.closest(".rdr-tab"); if (!t) return;
+  const g = t.dataset.grupo;
+  document.querySelectorAll("#rdr-modal-tabs .rdr-tab").forEach((x) => x.classList.toggle("ativa", x.dataset.grupo === g));
+  document.querySelectorAll("#rdr-modal-corpo .rdr-tab-body").forEach((x) => x.classList.toggle("ativa", x.dataset.grupo === g));
+});
+const rdrBtnCompleta = $("#rdr-modal-completa");
+if (rdrBtnCompleta) rdrBtnCompleta.addEventListener("click", () => {
+  const chave = RDR_MODAL_CHAVE;
+  $("#modal-radar").classList.add("hidden");
+  abrirAnaliseCompleta(chave);
+});
+
 $("#lista-jogos").addEventListener("click", (e) => {
   const ver = e.target.closest(".rdr-ver");
   if (ver) { abrirDetalhesRadar(ver.dataset.chave); return; }
@@ -1897,10 +2083,12 @@ document.querySelectorAll("[data-fechar]").forEach((b) => b.addEventListener("cl
 document.querySelectorAll(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m) m.classList.add("hidden"); }));
 
 // ===================== Início =====================
-// Bloqueio TEMPORÁRIO no celular (economia de cota da API). Para RELIGAR o
-// acesso mobile no futuro, basta apagar este bloco "if (EH_CELULAR)".
+// Bloqueio do celular (economia de cota da API). Para DESLIGAR o celular de novo
+// (ex.: quando tiver muita gente usando), troque BLOQUEAR_CELULAR para true.
+// Para deixar o celular liberado, mantenha em false.
+var BLOQUEAR_CELULAR = false;
 var EH_CELULAR = /Mobi|Android|iPhone|iPod|Windows Phone|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent || "");
-if (EH_CELULAR) {
+if (BLOQUEAR_CELULAR && EH_CELULAR) {
   var bc = document.getElementById("bloqueio-celular");
   if (bc) bc.classList.remove("hidden");
   var tl = document.getElementById("tela-login"); if (tl) tl.classList.add("hidden");

@@ -435,6 +435,52 @@ main { padding: 12px 22px 60px; max-width: 1200px; margin: 0 auto; }
 .rdr-analisar:hover { filter: brightness(1.08); }
 .aviso-plano { color: var(--amarelo); font-size: 12.5px; }
 
+/* ---- Radar: contador da seção ---- */
+.rdr-sec-n { display: inline-block; min-width: 18px; text-align: center; background: var(--fundo2);
+  border: 1px solid var(--borda); border-radius: 999px; padding: 1px 7px; font-size: 11px; color: var(--texto-fraco); margin-left: 4px; }
+
+/* ---- Radar: barra de filtros (etapa 5) ---- */
+.rdr-filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 4px 4px; }
+.rdr-fsel { background: var(--cartao2); color: var(--texto); border: 1px solid var(--borda); border-radius: 999px;
+  padding: 8px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.rdr-ftog { background: var(--cartao2); color: var(--texto-fraco); border: 1px solid var(--borda); border-radius: 999px;
+  padding: 8px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.rdr-ftog:hover { border-color: var(--azul); }
+.rdr-ftog.ativo { background: rgba(34,197,94,.14); color: var(--verde); border-color: rgba(34,197,94,.5); }
+.rdr-flimpar { background: transparent; color: var(--vermelho); border: 1px solid rgba(239,68,68,.4); border-radius: 999px;
+  padding: 8px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.rdr-flimpar:hover { background: rgba(239,68,68,.10); }
+
+/* ---- Radar: modal de detalhes por abas (etapa 6) ---- */
+.rdr-modal-head { margin: 2px 0 12px; }
+.rdr-mh-jogo { font-size: 19px; font-weight: 800; }
+.rdr-mh-jogo i { color: var(--texto-fraco); font-style: normal; font-size: 13px; }
+.rdr-mh-meta { font-size: 12.5px; color: var(--texto-fraco); margin-top: 2px; }
+.rdr-mh-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.rdr-mh-resumo { margin-top: 10px; font-size: 13px; color: var(--texto-fraco); font-style: italic;
+  border-left: 3px solid var(--borda); padding-left: 10px; }
+.rdr-modal-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 12px; border-bottom: 1px solid var(--borda); padding-bottom: 10px; }
+.rdr-tab { background: var(--cartao2); color: var(--texto-fraco); border: 1px solid var(--borda); border-radius: 999px;
+  padding: 8px 13px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rdr-tab:hover { border-color: var(--azul); }
+.rdr-tab.ativa { background: linear-gradient(90deg, var(--azul), var(--verde)); color: #04130b; border-color: transparent; }
+.rdr-tab-body { display: none; }
+.rdr-tab-body.ativa { display: block; }
+.rdr-ol { background: linear-gradient(180deg, var(--cartao), var(--cartao2)); border: 1px solid var(--borda);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.rdr-ol-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.rdr-ol-sel { font-size: 14.5px; font-weight: 800; }
+.rdr-ol-num { font-size: 20px; font-weight: 800; color: var(--verde); flex: 0 0 auto; }
+.rdr-ol-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.rdr-ol-subs { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.rdr-ol-sub { display: grid; grid-template-columns: 1fr 2fr auto; align-items: center; gap: 8px; font-size: 12.5px; color: var(--texto-fraco); }
+.rdr-ol-sub b { color: var(--texto); }
+.rdr-ol-tag { margin-top: 8px; display: inline-block; background: var(--fundo2); border: 1px solid var(--borda);
+  border-radius: 999px; padding: 3px 10px; font-size: 11.5px; color: var(--texto); }
+.rdr-ol-aviso { margin-top: 8px; font-size: 12px; color: var(--amarelo); }
+.rdr-modal-rod { display: flex; justify-content: flex-end; margin-top: 8px; }
+.rdr-modal-rod .btn-primario { width: auto; margin-top: 0; padding: 12px 22px; }
+
 /* status do jogo no cartao */
 .cj-status.vivo { color: var(--vermelho); font-weight: 700; }
 .cj-status.fim { color: var(--verde); }

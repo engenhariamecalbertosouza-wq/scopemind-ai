@@ -104,6 +104,25 @@
         </div>
         <div id="resumo" class="resumo"></div>
         <div id="info-periodo" class="info-periodo"></div>
+        <div id="radar-filtros" class="rdr-filtros hidden">
+          <select id="rf-mercado" class="rdr-fsel" title="Filtrar por mercado">
+            <option value="">🎲 Todos os mercados</option>
+            <option value="RESULTADO">⚽ Resultado</option>
+            <option value="GOLS">📊 Gols</option>
+            <option value="ESCANTEIOS">🚩 Escanteios</option>
+            <option value="MARCADORES">🎯 Marcadores</option>
+            <option value="PLACAR">🔢 Placar exato</option>
+          </select>
+          <select id="rf-risco" class="rdr-fsel" title="Filtrar por risco">
+            <option value="">🛡️ Qualquer risco</option>
+            <option value="Baixo">🟢 Risco baixo</option>
+            <option value="Médio">🟡 Risco médio</option>
+            <option value="Alto">🔴 Risco alto</option>
+          </select>
+          <button id="rf-forte" class="rdr-ftog" data-on="0">🔥 Só fortes</button>
+          <button id="rf-alta" class="rdr-ftog" data-on="0">⭐ Alta confiança</button>
+          <button id="rf-limpar" class="rdr-flimpar hidden">✕ Limpar filtros</button>
+        </div>
         <div id="radar-destaques"></div>
         <div id="lista-jogos"></div>
       </main>
@@ -436,6 +455,21 @@
           <button id="btn-refazer-rel" class="btn-secundario hidden">🔄 Refazer análise (gasta créditos)</button>
           <button id="btn-excluir-rel" class="btn-excluir hidden">🗑️ Excluir</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== JANELA: DETALHES DO RADAR (POR ABAS) ====================== -->
+  <div id="modal-radar" class="modal hidden">
+    <div class="modal-conteudo grande">
+      <button class="fechar" data-fechar="modal-radar">✕</button>
+      <div id="rdr-modal-head" class="rdr-modal-head"></div>
+      <div id="rdr-modal-tabs" class="rdr-modal-tabs"></div>
+      <div id="rdr-modal-corpo" class="rdr-modal-corpo"></div>
+      <p class="disclaimer">⚠️ Leituras probabilísticas por mercado, geradas pelos agentes de IA. São
+        probabilidades — o futebol é imprevisível e nenhuma análise elimina o risco.</p>
+      <div class="rdr-modal-rod">
+        <button id="rdr-modal-completa" class="btn-primario">🔮 Ver análise completa</button>
       </div>
     </div>
   </div>
