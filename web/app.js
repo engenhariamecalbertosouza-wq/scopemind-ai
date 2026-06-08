@@ -372,8 +372,9 @@ function rdrFiltrar(jogos) {
   return out;
 }
 
-function renderRadar() {
-  const d = RADAR_DATA || {};
+function renderRadar(d) {
+  if (d) RADAR_DATA = d;            // carregarJogos passa os dados; os filtros chamam sem argumento
+  d = RADAR_DATA || {};
   const cont = $("#lista-jogos"), dest = $("#radar-destaques"), info = $("#info-periodo");
   const barra = $("#radar-filtros");
   const jogos = d.jogos || [];
@@ -450,9 +451,10 @@ function rdrCardJogo(j, opForcado) {
     corpo = '<div class="rdr-aguardando">⏳ Aguardando análise</div>' +
       '<button class="rdr-analisar" data-chave="' + esc(j.chave) + '">🔮 Analisar este jogo</button>';
   }
-  return '<div class="rdr-card ' + (j.estado || "") + '"><div class="rdr-card-head">' +
+  const vivo = ehVivo(j.status) ? '<span class="rdr-ao-vivo">🔴 AO VIVO</span> ' : "";
+  return '<div class="rdr-card ' + (j.estado || "") + (ehVivo(j.status) ? " vivo" : "") + '"><div class="rdr-card-head">' +
     '<div class="rdr-card-jogo">' + esc(j.home) + ' <i>x</i> ' + esc(j.away) + "</div>" +
-    '<div class="rdr-card-meta">' + meta + "</div></div>" + corpo + "</div>";
+    '<div class="rdr-card-meta">' + vivo + meta + "</div></div>" + corpo + "</div>";
 }
 
 // -------- Etapa 6: DETALHES POR ABAS (modal) --------

@@ -389,13 +389,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"erro": "Nao consegui buscar os jogos: %s" % e}, 500)
                 return
             jogos_raw = list(jogos)   # lista completa (p/ o front montar o resumo sem 2a chamada)
-            # so jogos A COMECAR (ao vivo e encerrados ficam de fora do radar)
-            def _a_comecar(j):
-                s = (j.get("status", "") or "").lower()
-                if "encerrad" in s:
-                    return False
-                return not any(t in s for t in ("tempo", "intervalo", "ao vivo", "prorrog", "penal"))
-            jogos = [j for j in jogos if _a_comecar(j)]
+            # Radar inclui jogos A COMECAR e os AO VIVO (jogos em andamento tambem dao p/ analisar/
+            # acompanhar). So os ENCERRADOS ficam de fora (vao pro modulo Encerrados).
+            def _radar_jogo(j):
+                return "encerrad" not in (j.get("status", "") or "").lower()
+            jogos = [j for j in jogos if _radar_jogo(j)]
             mapa = {}
             try:
                 for r in relatorios.todos():
