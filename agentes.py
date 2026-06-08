@@ -9,6 +9,7 @@ leitura do jogo e indicadores rapidos.
 """
 import re
 import json
+import datetime
 import urllib.request
 import urllib.error
 
@@ -26,11 +27,14 @@ REGRA DE OURO (INEGOCIAVEL):
   "aposta segura" nem trate previsao como certeza. Use "cenario mais provavel", "tendencia",
   "leitura estatistica", "projecao".
 - Se faltarem dados, DIGA e REDUZA a confianca. NUNCA invente estatisticas, escalacoes ou numeros.
-- JOGADORES: use APENAS nomes REAIS e plausiveis (escalacao/convocacao/historico recente/perfil
-  ofensivo). Se a escalacao NAO estiver confirmada, ainda assim aponte os nomes mais provaveis pela
-  convocacao/historico, mas marque status "Provavel" ou "Duvida" e reduza a confianca. Se nao houver
-  base confiavel para ninguem, deixe a lista de artilheiros VAZIA e explique no aviso. NUNCA invente
-  um jogador que nao existe.
+- JOGADORES (REGRA REFORCADA - LEIA COM ATENCAO): seu conhecimento interno pode estar DESATUALIZADO
+  sobre transferencias - jogadores mudam de clube a cada temporada. NUNCA cite um jogador como provavel
+  autor de gol APENAS de memoria. So aponte um nome se: (a) ele aparece nos DADOS ADICIONAIS fornecidos
+  (escalacao/relacao/forma recente), OU (b) voce tem ALTA certeza de que ele esta ATUALMENTE no clube
+  NESTA temporada. Priorize SEMPRE informacao RECENTE (ultimos dias/semanas). Na MENOR duvida sobre se o
+  jogador ainda joga no clube, NAO o cite. E MUITO melhor deixar a lista de artilheiros VAZIA (com aviso
+  honesto) do que citar um jogador que ja saiu do clube - quem acompanha futebol percebe na hora e perde
+  a confianca no sistema. NUNCA invente um jogador que nao existe.
 - AMISTOSO: trate como jogo de MAIOR incerteza (muitas substituicoes, testes) e reduza a confianca.
 
 OS 10 AGENTES (cada um um doutor; opinam e debatem internamente, sem mostrar o rascunho):
@@ -67,7 +71,7 @@ Brasil, frases CURTAS e diretas (pouco texto, muita interpretacao). Esquema EXAT
      "prob_gol": <inteiro>, "confianca": "Baixa|Media|Alta",
      "status": "Confirmado|Provavel|Duvida", "motivo": "<frase curta>"}
   ],                                  // 0 a 3 itens; [] se nao houver base confiavel
-  "artilheiros_aviso": "<'' se a lista esta solida; senao a ressalva, ex.: 'Escalacao ainda nao confirmada. Probabilidade baseada em convocacao, historico recente e perfil ofensivo.' ou 'Dados insuficientes para apontar artilheiros com seguranca.'>",
+  "artilheiros_aviso": "<'' se a lista esta solida; senao a ressalva, ex.: 'Escalacao ainda nao confirmada; nomes baseados em forma recente.' ou 'Sem dados recentes de escalacao - nao apontamos artilheiros para nao arriscar um nome desatualizado.'>",
   "leitura": [
     {"icone": "<um de: ⚽ 🧱 ⚡ 🎯 🔄>", "texto": "<frase curta de como o jogo tende a acontecer>"}
   ],                                  // 3 a 5 itens
@@ -104,8 +108,12 @@ jogo (ex.: se a tendencia e de poucos gols, "Menos de 2.5" alto e "Mais de 2.5" 
 sao mercado de ALTO risco (probabilidades baixas). NUNCA prometa resultado. Responda APENAS o JSON."""
 
 
-def _montar_mensagem(partida, contexto):
+def _montar_mensagem(partida, contexto, busca=False):
+    hoje = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3))).strftime("%d/%m/%Y")
     linhas = ["Analise a partida abaixo com a profundidade dos 10 agentes e responda no JSON definido.\n"]
+    linhas.append("DATA DE HOJE: %s (fuso de Brasilia). Considere a TEMPORADA ATUAL. Lembrete: seu "
+                  "conhecimento pode estar defasado sobre transferencias - so use jogadores que estao no "
+                  "clube AGORA; na duvida sobre o elenco atual, NAO cite nomes.\n" % hoje)
     linhas.append("DADOS DA PARTIDA:")
     for chave, rotulo in [
         ("home", "Time A (mandante)"), ("away", "Time B (visitante)"),
@@ -125,44 +133,65 @@ def _montar_mensagem(partida, contexto):
         linhas.append("\nOBSERVACAO: nao ha dados estatisticos detalhados ao vivo. Use seu conhecimento "
                       "como estimativa, sinalize as lacunas e reduza a confianca quando necessario.")
 
+    if busca:
+        linhas.append("\nBUSCA NA WEB ATIVADA: use a ferramenta de busca para CONFERIR, em fontes RECENTES "
+                      "(dos ultimos dias), a provavel escalacao, os jogadores em forma/artilheiros do momento, "
+                      "lesoes e suspensoes ANTES de concluir. Cite SOMENTE jogadores confirmados como atuais "
+                      "no clube. Se a busca nao confirmar um nome, NAO o cite.")
+
     linhas.append("\nResponda agora SOMENTE com o objeto JSON, seguindo o esquema e todas as regras.")
     return "\n".join(linhas)
 
 
-def _chamar_claude(system, mensagem, modelo, chave, max_tokens=8000):
-    corpo = json.dumps({
-        "model": modelo,
-        "max_tokens": max_tokens,
-        "system": system,
-        "messages": [{"role": "user", "content": mensagem}],
-    }).encode("utf-8")
+def _chamar_claude(system, mensagem, modelo, chave, max_tokens=8000, tools=None):
+    # messages cresce se a ferramenta de servidor (busca web) precisar continuar (stop_reason "pause_turn").
+    messages = [{"role": "user", "content": mensagem}]
+    usar_tools = tools
+    texto = ""
+    for _ in range(6):  # guarda contra loop de continuacao de ferramenta
+        payload = {"model": modelo, "max_tokens": max_tokens, "system": system, "messages": messages}
+        if usar_tools:
+            payload["tools"] = usar_tools
+        corpo = json.dumps(payload).encode("utf-8")
 
-    req = urllib.request.Request(API_URL, data=corpo, method="POST")
-    req.add_header("x-api-key", chave)
-    req.add_header("anthropic-version", "2023-06-01")
-    req.add_header("content-type", "application/json")
+        req = urllib.request.Request(API_URL, data=corpo, method="POST")
+        req.add_header("x-api-key", chave)
+        req.add_header("anthropic-version", "2023-06-01")
+        req.add_header("content-type", "application/json")
 
-    try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            dados = json.loads(resp.read().decode("utf-8"))
-        partes = dados.get("content", [])
-        texto = "".join(p.get("text", "") for p in partes if p.get("type") == "text")
-        return texto.strip()
-    except urllib.error.HTTPError as e:
         try:
-            detalhe = json.loads(e.read().decode("utf-8"))
-            msg = detalhe.get("error", {}).get("message", str(e))
-        except Exception:
-            msg = str(e)
-        if e.code == 401:
-            raise RuntimeError("Chave da IA invalida. Verifique a chave da Anthropic na engrenagem.")
-        if e.code == 429:
-            raise RuntimeError("A IA esta sobrecarregada ou sem credito (limite atingido). Tente de novo em instantes.")
-        if e.code == 400 and "credit" in msg.lower():
-            raise RuntimeError("Sua conta da Anthropic parece estar sem credito. Adicione credito no console.anthropic.com.")
-        raise RuntimeError("Erro da IA (%s): %s" % (e.code, msg))
-    except urllib.error.URLError as e:
-        raise RuntimeError("Sem conexao com a internet para falar com a IA: %s" % e.reason)
+            with urllib.request.urlopen(req, timeout=240) as resp:
+                dados = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            try:
+                detalhe = json.loads(e.read().decode("utf-8"))
+                msg = detalhe.get("error", {}).get("message", str(e))
+            except Exception:
+                msg = str(e)
+            if e.code == 401:
+                raise RuntimeError("Chave da IA invalida. Verifique a chave da Anthropic na engrenagem.")
+            if e.code == 429:
+                raise RuntimeError("A IA esta sobrecarregada ou sem credito (limite atingido). Tente de novo em instantes.")
+            if e.code == 400 and "credit" in msg.lower():
+                raise RuntimeError("Sua conta da Anthropic parece estar sem credito. Adicione credito no console.anthropic.com.")
+            # Se a BUSCA WEB nao estiver habilitada/aceita na conta, NAO quebra a analise:
+            # refaz a chamada SEM a ferramenta (a analise sai com base no conhecimento do modelo).
+            if usar_tools and e.code in (400, 403, 404):
+                usar_tools = None
+                messages = [{"role": "user", "content": mensagem}]
+                continue
+            raise RuntimeError("Erro da IA (%s): %s" % (e.code, msg))
+        except urllib.error.URLError as e:
+            raise RuntimeError("Sem conexao com a internet para falar com a IA: %s" % e.reason)
+
+        content = dados.get("content", []) or []
+        texto = "".join(p.get("text", "") for p in content if p.get("type") == "text")
+        # ferramenta de servidor pausou para continuar? reenvia ate concluir.
+        if dados.get("stop_reason") == "pause_turn":
+            messages.append({"role": "assistant", "content": content})
+            continue
+        break
+    return texto.strip()
 
 
 def _extrair_json(texto):
@@ -293,8 +322,12 @@ def _corrigir_termos(obj):
 def analisar(partida, contexto, cfg):
     modelo = cfg.get("anthropic_model", "claude-opus-4-8")
     chave = cfg.get("anthropic_api_key", "")
-    mensagem = _montar_mensagem(partida, contexto)
-    texto = _chamar_claude(SYSTEM_PROMPT, mensagem, modelo, chave)
+    busca = bool(cfg.get("busca_web"))   # busca info recente na web (so se ligado; gasta um pouco mais)
+    mensagem = _montar_mensagem(partida, contexto, busca)
+    tools = None
+    if busca:
+        tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}]
+    texto = _chamar_claude(SYSTEM_PROMPT, mensagem, modelo, chave, tools=tools)
 
     dados = None
     try:

@@ -513,6 +513,15 @@
       <p class="aviso-pequeno">A agenda e os dados atualizam de graça sozinhos. Esta opção liga a
         <b>reanálise por IA</b> automática (apenas dos jogos salvos que vão acontecer em até 2 dias).</p>
 
+      <label class="check-linha">
+        <input id="cfg-busca" type="checkbox" />
+        <span>🔎 Buscar informações <b>recentes na web</b> ao analisar <b>(mais preciso, gasta um pouco mais)</b></span>
+      </label>
+      <p class="aviso-pequeno">Quando ligado, a IA pesquisa na internet a escalação provável, lesões e os
+        jogadores em forma <b>dos últimos dias</b> antes de concluir — evita citar jogador que já saiu do clube.
+        Precisa que a <b>busca na web esteja habilitada</b> na sua conta da Anthropic (console). Custa ~US$0,01 por
+        busca + tokens. Se a busca não estiver disponível, a análise sai normalmente sem ela.</p>
+
       <button id="btn-salvar-config" class="btn-primario">Salvar</button>
       <p id="config-ok" class="ok"></p>
       <p id="cfg-ultima" class="aviso-pequeno"></p>

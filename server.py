@@ -69,6 +69,8 @@ def carregar_config():
         cfg["football_api_key"] = os.environ["FOOTBALL_API_KEY"].strip()
     if os.environ.get("ANTHROPIC_MODEL"):
         cfg["anthropic_model"] = os.environ["ANTHROPIC_MODEL"].strip()
+    if os.environ.get("BUSCA_WEB"):
+        cfg["busca_web"] = os.environ["BUSCA_WEB"].strip().lower() not in ("", "0", "false", "nao", "off")
     if os.environ.get("APP_SECRET"):
         cfg["secret"] = os.environ["APP_SECRET"].strip()
     if os.environ.get("ADMIN_PASSWORD"):
@@ -417,6 +419,7 @@ class Handler(BaseHTTPRequestHandler):
                 "ao_vivo_ia": bool(cfg.get("anthropic_api_key")),
                 "modelo": cfg.get("anthropic_model", "claude-opus-4-8"),
                 "auto_reanalise": bool(cfg.get("auto_reanalise")),
+                "busca_web": bool(cfg.get("busca_web")),
                 "limite_analises_gratis": _limite_gratis(cfg),
                 "vip_dias": _vip_dias(cfg),
                 "ultima_atualizacao": ULTIMA_ATUALIZACAO["quando"],
@@ -690,6 +693,8 @@ class Handler(BaseHTTPRequestHandler):
             cfg["anthropic_model"] = dados["anthropic_model"].strip()
         if "auto_reanalise" in dados:
             cfg["auto_reanalise"] = bool(dados["auto_reanalise"])
+        if "busca_web" in dados:
+            cfg["busca_web"] = bool(dados["busca_web"])
         if "limite_analises_gratis" in dados:
             try:
                 cfg["limite_analises_gratis"] = max(0, int(dados["limite_analises_gratis"]))
